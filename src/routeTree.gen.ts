@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app.index'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as AppTopicsIdRouteImport } from './routes/_app.topics.$id'
 import { Route as ApiAgentNotesRouteImport } from './routes/api/agent/notes'
@@ -46,6 +47,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AppRoute,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProfileRoute = ApiProfileRouteImport.update({
   id: '/api/profile',
@@ -153,6 +159,7 @@ const ApiTopicsIdTurnsRoute = ApiTopicsIdTurnsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/profile': typeof ApiProfileRoute
   '/topics/$id': typeof AppTopicsIdRoute
   '/api/agent/notes': typeof ApiAgentNotesRoute
@@ -176,6 +183,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/profile': typeof ApiProfileRoute
   '/': typeof AppIndexRoute
   '/topics/$id': typeof AppTopicsIdRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/profile': typeof ApiProfileRoute
   '/_app/': typeof AppIndexRoute
   '/_app/topics/$id': typeof AppTopicsIdRoute
@@ -229,6 +238,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/api/health'
     | '/api/profile'
     | '/topics/$id'
     | '/api/agent/notes'
@@ -252,6 +262,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
+    | '/api/health'
     | '/api/profile'
     | '/'
     | '/topics/$id'
@@ -277,6 +288,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/login'
+    | '/api/health'
     | '/api/profile'
     | '/_app/'
     | '/_app/topics/$id'
@@ -303,6 +315,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiProfileRoute: typeof ApiProfileRoute
   ApiAgentNotesRoute: typeof ApiAgentNotesRoute
   ApiAgentProfileRoute: typeof ApiAgentProfileRoute
@@ -346,6 +359,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/profile': {
       id: '/api/profile'
@@ -505,6 +525,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiProfileRoute: ApiProfileRoute,
   ApiAgentNotesRoute: ApiAgentNotesRoute,
   ApiAgentProfileRoute: ApiAgentProfileRoute,

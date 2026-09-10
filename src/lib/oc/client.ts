@@ -134,6 +134,14 @@ export const oc = {
       project: { id: string; environments: Array<{ name: string; agentId: string; activeDeploymentId?: string }> };
     }>(`/projects/${encodeURIComponent(env().projectId)}`);
   },
+  // A project secret the managed connections attach; the same route the CLI's
+  // `secrets set --allow-origin` uses. Replaces the value and the origins.
+  putSecret(name: string, value: string, allowedOrigins: readonly string[]) {
+    return request<unknown>(`/projects/${encodeURIComponent(env().projectId)}/secrets/${encodeURIComponent(name)}`, {
+      method: "PUT",
+      body: JSON.stringify({ value, environment: env().environment, allowedOrigins }),
+    });
+  },
 };
 
 // All events of a session from `after`, following seq pages until drained.

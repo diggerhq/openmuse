@@ -10,6 +10,7 @@ import { clientAddress, sameOrigin } from "@/lib/auth/guard";
 import { clearLoginFailures, loginAllowed, recordLoginFailure } from "@/lib/auth/rate-limit";
 import { env } from "@/lib/env";
 import { readJson } from "@/lib/http/json";
+import { installationOrigin, registerInstallation } from "@/lib/oc/installation";
 
 export const Route = createFileRoute("/api/auth/login")({
   server: {
@@ -26,9 +27,11 @@ export const Route = createFileRoute("/api/auth/login")({
           return Response.json({ error: "invalid_secret" }, { status: 401 });
         }
         clearLoginFailures(client);
+        // The owner signing in is the installation claiming its origin.
+        const installation = await registerInstallation(installationOrigin(request));
         const { value, session } = await issueSession();
         return Response.json(
-          { ok: true, csrf: session.csrf, exp: session.exp },
+          { ok: true, csrf: session.csrf, exp: session.exp, installation },
           { headers: { "set-cookie": `${SESSION_COOKIE}=${value}; ${cookieAttributes(SESSION_TTL_SECONDS)}` } },
         );
       },
