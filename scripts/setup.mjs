@@ -67,7 +67,7 @@ const secret = (bytes) => randomBytes(bytes).toString("base64url");
 const PASTE = ["OPENCOMPUTER_API_KEY", "OPENCOMPUTER_PROJECT_ID", "OPENMUSE_OWNER_SECRET", "OPENMUSE_COOKIE_SECRET"];
 const PASTE_WITH_AGENT = [...PASTE, "OPENMUSE_AGENT_SECRET"];
 
-function steps(target, env, originKnown) {
+function steps(target, originKnown) {
   const finish = originKnown
     ? "The agents are deployed for that origin. Open it and sign in with OPENMUSE_OWNER_SECRET from .env.local."
     : "When the host has given the app its URL:\n  npm run setup -- --origin https://<the app's host>\nthen open it and sign in with OPENMUSE_OWNER_SECRET from .env.local.";
@@ -192,7 +192,7 @@ Ready. Project ${binding.projectName} (${binding.projectId}); agents ${env.OPENM
 ${generated.length ? `Generated ${generated.join(", ")} into .env.local (mode 600).` : "Kept the existing secrets in .env.local."}
 ${generated.includes("OPENMUSE_OWNER_SECRET") ? `\nOwner login secret (type it into the login form; it is not shown again):\n  ${env.OPENMUSE_OWNER_SECRET}\n` : ""}`);
   if (target) {
-    console.log(steps(target, env, Boolean(env.OPENMUSE_APP_ORIGIN)));
+    console.log(steps(target, Boolean(env.OPENMUSE_APP_ORIGIN)));
   } else {
     console.log(`Run locally:          npm run dev   (port 3100; the app origin must reach it, e.g. ngrok http --domain=<host> 3100)
 Deploy:               npm run setup -- --target <cloudflare|docker|railway|render|fly|digitalocean> prints the steps; README "Deploy" has the buttons.`);

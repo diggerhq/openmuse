@@ -1,0 +1,40 @@
+# Fly.io (https://fly.io/docs/reference/configuration/). One Machine built
+# from the Dockerfile, a volume for the interim state store, the health check
+# on /api/health. The Machine never auto-stops because the interim return
+# path is an in-process timer. `fly launch --copy-config --no-deploy` takes
+# this file and asks for the app name and region.
+# Status: spec validated with `fly config validate`; a deploy has not been exercised.
+
+app = "openmuse"
+primary_region = "lhr"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  OPENMUSE_STATE_DIR = "/data"
+  OPENMUSE_RETURN_PATH = "timer"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health"
+
+[[mounts]]
+  source = "openmuse_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
