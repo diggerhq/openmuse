@@ -7,12 +7,35 @@
   "engines": {
     "node": "22.x"
   },
+  "cloudflare": {
+    "bindings": {
+      "OPENCOMPUTER_API_KEY": {
+        "description": "Your OpenComputer API key (`npx opencomputer login` stores it in `~/.opencomputer/config.json`). Server only."
+      },
+      "OPENCOMPUTER_PROJECT_ID": {
+        "description": "The OpenComputer project id `npm run setup` printed (it links or creates `openmuse-dev`)."
+      },
+      "OPENMUSE_OWNER_SECRET": {
+        "description": "The secret you will type into the login form; `npm run setup` generated one into `.env.local`, or `openssl rand -base64 24`."
+      },
+      "OPENMUSE_COOKIE_SECRET": {
+        "description": "Signs the owner cookie; from `.env.local`, or `openssl rand -base64 32`."
+      },
+      "OPENMUSE_AGENT_SECRET": {
+        "description": "The installation secret the agents present; from `.env.local`, or `openssl rand -base64 32`. The app registers it with OpenComputer when you sign in."
+      },
+      "OPENMUSE_STORE": {
+        "description": "Workers KV for the interim topic index and notes; any new namespace."
+      }
+    }
+  },
   "scripts": {
     "dev": "vite dev --port 3100",
     "dev:cloudflare": "OPENMUSE_TARGET=cloudflare vite dev --port 3100",
     "build": "vite build",
     "build:cloudflare": "OPENMUSE_TARGET=cloudflare vite build",
     "start": "srvx --prod --static ../client dist/server/server.js",
+    "deploy": "npm run build:cloudflare && wrangler deploy",
     "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
     "setup": "node scripts/setup.mjs",
     "prepare:agent": "node scripts/prepare-agent.mjs",

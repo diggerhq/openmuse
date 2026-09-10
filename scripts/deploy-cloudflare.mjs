@@ -1,8 +1,11 @@
-// The one command that puts the app on Cloudflare Workers:
+// The CLI path onto Cloudflare Workers, from a laptop with .env.local:
 //   npm run deploy:cloudflare
 // It creates the KV namespace the interim state store needs (once, writing
-// its id into wrangler.jsonc), builds the Worker, uploads the app's secrets
-// from .env.local, and runs `wrangler deploy`. Needs `npx wrangler login`.
+// its id into wrangler.jsonc), runs `npm run deploy` (the Cloudflare build +
+// `wrangler deploy`, which is also what the Deploy to Cloudflare button and
+// Workers Builds run; there the platform supplies the namespace and the
+// secrets instead), then uploads the app's secrets from .env.local.
+// Needs `npx wrangler login`; with several accounts set CLOUDFLARE_ACCOUNT_ID.
 import { spawn } from "node:child_process";
 import { readFile, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -70,15 +73,13 @@ try {
     console.log(`Wrote the namespace id ${id} into wrangler.jsonc; commit that change.`);
   }
 
-  console.log("Building the Worker…");
-  await run("npx", ["vite", "build"], { env: { OPENMUSE_TARGET: "cloudflare" } });
+  console.log("Building and deploying…");
+  await run("npm", ["run", "deploy"]);
 
+  // After the deploy so the Worker exists; secrets apply to the live Worker at once.
   console.log("Uploading secrets…");
   const secrets = Object.fromEntries(SECRET_NAMES.filter((name) => env[name]).map((name) => [name, env[name]]));
   await wrangler(["secret", "bulk"], { input: JSON.stringify(secrets) });
-
-  console.log("Deploying…");
-  await wrangler(["deploy"]);
   console.log(`
 Deployed. If the Worker's URL is not the OPENMUSE_APP_ORIGIN the agents were deployed with, run
   npm run setup -- --origin https://<worker host>

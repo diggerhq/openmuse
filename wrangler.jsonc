@@ -9,7 +9,8 @@
   // the platform delivers worker outcomes itself.
   "triggers": { "crons": ["* * * * *"] },
   // The interim topic index and fixture notes. `npm run deploy:cloudflare`
-  // creates the namespace and fills in the id.
+  // creates the namespace and fills in the id; the Deploy to Cloudflare
+  // button provisions one and rewrites the id in the cloned repository.
   "kv_namespaces": [{ "binding": "OPENMUSE_STORE", "id": "openmuse-store-local" }],
   "vars": { "OPENMUSE_STATE_STORE": "kv" }
 }
