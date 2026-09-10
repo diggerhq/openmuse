@@ -36,6 +36,8 @@ export interface ReturnPathRecord {
 export interface AppState {
   readonly version: 1;
   readonly coordinator?: { readonly sessionId: string; readonly deploymentId: string };
+  /** Earlier coordinator sessions, oldest first, kept as history links after a deliberate replacement. */
+  readonly previousCoordinatorSessionIds?: readonly string[];
   readonly coordinatorRecalledRevision?: string;
   readonly topics: Readonly<Record<string, TopicRecord>>;
   readonly returnPath: Readonly<Record<string, ReturnPathRecord>>;

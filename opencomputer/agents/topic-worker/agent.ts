@@ -3,7 +3,7 @@ import { useMessage, useProfile, useTopicNotes } from "./memory/index.js";
 import { saveNotes } from "./tools/save-notes.js";
 
 export default function Agent() {
-  useModel("anthropic/claude-sonnet-5");
+  useModel("anthropic/claude-sonnet-4.6");
   const message = useMessage();
   const owner = useProfile();
   const notes = useTopicNotes();

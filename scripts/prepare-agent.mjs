@@ -1,7 +1,7 @@
 // Stages what the two agents need before doctor/deploy:
 //  1. fixture notes -> opencomputer/agents/*/memory/fixtures.generated.ts
 //     (the agent-side memory adapter's fallback until project memory lands)
-//  2. opencomputer/templates/app-connection.ts -> each agent's tools/app.ts
+//  2. scripts/templates/app-connection.ts -> each agent's tools/app.ts
 //     with the app origin from OPENMUSE_APP_ORIGIN (the CLI reads
 //     defineConnection() origins from source, so it must be a literal)
 //  3. removes the CLI's previous generated runtime so doctor does not scan it.
@@ -34,7 +34,7 @@ const url = new URL(origin);
 if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash) {
   throw new Error("OPENMUSE_APP_ORIGIN must be an https origin without a path");
 }
-const template = await readFile(new URL("opencomputer/templates/app-connection.ts", root), "utf8");
+const template = await readFile(new URL("scripts/templates/app-connection.ts", root), "utf8");
 
 for (const agent of agents) {
   const dir = new URL(`opencomputer/agents/${agent}/`, root);

@@ -14,8 +14,9 @@
     "predeploy": "npm run prepare:agent",
     "deploy": "opencomputer deploy --alias development",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p opencomputer/tsconfig.json",
-    "test": "node --test test/*.test.mjs",
-    "check": "npm run typecheck && npm test && npm run doctor"
+    "test": "tsx --test test/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run doctor",
+    "pretypecheck": "npm run prepare:agent"
   },
   "dependencies": {
     "next": "16.3.4",
@@ -28,7 +29,10 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.9.0"
   },
-  "engines": { "node": ">=22.19.0" }
+  "engines": {
+    "node": ">=22.19.0"
+  }
 }

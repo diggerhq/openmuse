@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
+// In development the app is usually reached through a tunnel so the
+// coordinator's managed connection can call it; allow that host's dev assets.
+const devOrigins = [process.env.OPENMUSE_APP_ORIGIN].filter((value): value is string => Boolean(value)).map((value) => new URL(value).host);
+
 const config: NextConfig = {
+  allowedDevOrigins: devOrigins,
   reactStrictMode: true,
   poweredByHeader: false,
   agentRules: false,

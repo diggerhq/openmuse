@@ -120,11 +120,18 @@ function Conversation({ csrf }: { csrf: string }) {
     try { await api(csrf, "/api/conversation/stop", { method: "POST" }); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); }
   }
 
+  // Upgrade or recovery: a new coordinator session on the current deployment.
+  async function replace() {
+    if (!confirm("End the coordinator session and start a new one on the current deployment? The conversation starts again from the current notes.")) return;
+    setBusy(true);
+    try { await api(csrf, "/api/conversation/replace", { method: "POST" }); setInitial(null); setSessionId(undefined); await load(); } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); } finally { setBusy(false); }
+  }
+
   return (
     <section className="pane">
       <header>
         <h1>OpenMuse</h1>
-        <span className="meta">{sessionId ? `session ${sessionId.slice(0, 8)} · ${connected ? "live" : "reconnecting"}` : "starting…"}</span>
+        <span className="meta">{sessionId ? `session ${sessionId.slice(0, 8)} · ${connected ? "live" : "reconnecting"}` : "starting…"} <button onClick={() => void replace()} disabled={busy || !sessionId} title="End this coordinator session and start a new one on the current deployment">Replace</button></span>
       </header>
       <div className="scroll">
         {error ? <p className="notice" role="alert">{error} <button onClick={() => void load()}>retry</button></p> : null}

@@ -14,7 +14,8 @@ export async function coordinatorSessionId(): Promise<string> {
   const state = await readState();
   if (state.coordinator && sessionUsable(await readSession(state.coordinator.sessionId))) return state.coordinator.sessionId;
   const deploymentId = await activeDeploymentId(env().coordinatorAgent);
-  const key = `coordinator/${deploymentId}${state.coordinator ? `/after/${state.coordinator.sessionId}` : ""}`;
+  const predecessor = state.coordinator?.sessionId ?? state.previousCoordinatorSessionIds?.at(-1);
+  const key = `coordinator/${deploymentId}${predecessor ? `/after/${predecessor}` : ""}`;
   const created = await createOrReuseSession(env().coordinatorAgent, key);
   await updateState((current) => ({
     state: { ...current, coordinator: { sessionId: created.id, deploymentId } },
@@ -44,6 +45,23 @@ export async function sendAppMessage(text: string, idempotencyKey: string) {
   const sessionId = await coordinatorSessionId();
   const recall = await recallForCoordinator();
   return { sessionId, ...(await queueTurn(sessionId, composeTurnInput(recall, text), idempotencyKey)) };
+}
+
+// Deliberate replacement (upgrade or recovery): end the predecessor so its
+// access is revoked, then admit a successor keyed on it against the current
+// deployment. The old session's history stays linked in the state file; the
+// successor starts from the current notes, not a copied transcript.
+export async function replaceCoordinator(): Promise<{ endedSessionId?: string; sessionId: string }> {
+  const state = await readState();
+  const ended = state.coordinator?.sessionId;
+  if (ended) {
+    try { await oc.end(ended); } catch { /* already ended */ }
+    await updateState((current) => ({
+      state: { ...current, coordinator: undefined, previousCoordinatorSessionIds: [...(current.previousCoordinatorSessionIds ?? []), ended] },
+      result: undefined,
+    }));
+  }
+  return { endedSessionId: ended, sessionId: await coordinatorSessionId() };
 }
 
 // Stop: the platform has no bare interrupt route; a turn in `interrupt` mode
