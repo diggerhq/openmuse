@@ -3,7 +3,7 @@
 # on /api/health. The Machine never auto-stops because the interim return
 # path is an in-process timer. `fly launch --copy-config --no-deploy` takes
 # this file and asks for the app name and region.
-# Status: spec validated with `fly config validate`; a deploy has not been exercised.
+# Status: verified with `fly launch`, `fly secrets import` and `fly deploy` on a throwaway app (docs/deploy/fly.md).
 
 app = "openmuse"
 primary_region = "lhr"

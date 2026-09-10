@@ -70,5 +70,9 @@ Local build with Docker 29.5 (colima, arm64) on 2026-09-10:
   topics after the run; `docker stop` took 1 s (SIGTERM honoured by the
   in-process server, no kill wait); after `docker start` the health check
   answered 200 and `state.json` was unchanged. Container and volume removed.
-- GHCR: see the workflow run recorded in the README's Deploy section once
-  the publishing commit is on `main`.
+- GHCR: the push of the publishing commit (`217e9bb`) ran
+  `.github/workflows/image.yml` (run 34537570306): success in 9 min 25 s
+  (the arm64 half runs under QEMU), pushed `ghcr.io/diggerhq/openmuse:main`
+  and `ghcr.io/diggerhq/openmuse:sha-217e9bb`, multi-arch manifest
+  `sha256:c92435a0…`. Pulling from this machine with a token without
+  `read:packages` was refused (`denied`), as the private package should.

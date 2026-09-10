@@ -38,7 +38,8 @@ flowchart LR
   Both call back into the app through one declared managed connection
   (`tools/app.ts`, generated from `scripts/templates/app-connection.ts` with
   the deployed origin) whose bearer secret OpenComputer attaches; agent code
-  never sees it.
+  never sees it, and the app registers it with the platform for its own
+  origin on every owner sign-in (`src/lib/oc/installation.ts`).
 - `src/lib/` the services: session lifecycle (`oc/`), owner auth (`auth/`,
   Web Crypto), the memory seam (`memory/`), topics (`topics/`), the
   coordinator conversation (`conversation/`), the interim state store
@@ -207,54 +208,66 @@ What the platform made hard, precisely, so they can become bugs or gaps:
 
 ## Deploy
 
-Requires Node 22, an OpenComputer account and the CLI logged in
-(`npx opencomputer login`).
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/diggerhq/openmuse)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/diggerhq/openmuse)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/diggerhq/openmuse/tree/main)
+
+| Host | Status | What you enter | Doc |
+| --- | --- | --- | --- |
+| Cloudflare Workers | **verified** (CLI path, 2026-09-10); the button is configured but not exercised: it needs a public repository | API key, project id, the three OpenMuse secrets from `.env.local` | [docs/deploy/cloudflare.md](docs/deploy/cloudflare.md) |
+| Docker image `ghcr.io/diggerhq/openmuse` | **verified** locally (2026-09-10); published by CI on `main` and `v*` tags | `--env-file .env.local`, a volume at `/data`, an https origin in front | [docs/deploy/docker.md](docs/deploy/docker.md) |
+| Fly.io | **verified** (2026-09-10); CLI only, Fly has no deploy button | `fly secrets import < .env.local` | [docs/deploy/fly.md](docs/deploy/fly.md) |
+| Render | spec validated, deploy not exercised; the button works with a private repository once Render's GitHub App is installed on it | API key and project id only; Render generates the three OpenMuse secrets | [docs/deploy/render.md](docs/deploy/render.md) |
+| Railway | spec validated (`.railway/railway.ts`, the current IaC format; `railway.json` is deprecated), deploy not exercised; no button, Railway buttons come from dashboard-authored templates | five values with `railway variables --set` | [docs/deploy/railway.md](docs/deploy/railway.md) |
+| DigitalOcean App Platform | spec validated, deploy not exercised; the button needs a public repository | API key, project id, the three OpenMuse secrets | [docs/deploy/digitalocean.md](docs/deploy/digitalocean.md) |
+| Vercel, Netlify | **unsupported** for now, see below | | |
+
+Every path starts the same way and ends the same way:
 
 ```sh
-git clone https://github.com/diggerhq/openmuse.git
-cd openmuse
-npm ci
-npm run setup -- --origin https://<the app's public https origin>
+git clone https://github.com/diggerhq/openmuse.git && cd openmuse && npm ci
+npx opencomputer login
+npm run setup -- --target <cloudflare|docker|railway|render|fly|digitalocean>
+#   generates the OpenMuse secrets into .env.local (mode 600), copies the OpenComputer
+#   key from the CLI login, links or creates the project openmuse-dev, prints the steps
+... deploy the app on the host (button or CLI, per the doc) ...
+npm run setup -- --origin https://<the app's host>
+#   deploys both agents to Development with their managed connection pinned to that origin
 ```
 
-`setup` generates `OPENMUSE_OWNER_SECRET`, `OPENMUSE_COOKIE_SECRET`,
-`OPENMUSE_AGENT_SECRET` and `OPENMUSE_INSTALLATION_ID` into the ignored
-`.env.local` (mode 600), copies the OpenComputer key from the CLI login into
-it, and prints the owner secret once; links or creates the OpenComputer
-project `openmuse-dev`; uploads the agent secret as a project secret allowed
-only for the app origin; deploys both agents to Development; and prints the
-deploy instructions. It never prints the OpenComputer key. Re-run it after
-changing agent source. `npm run setup -- --rotate` issues new owner and
-cookie secrets; every existing login stops working.
+Then open the app and sign in with `OPENMUSE_OWNER_SECRET` (from `.env.local`,
+or from the host's dashboard where the host generated it). The sign-in
+registers the installation secret `OPENMUSE_AGENT_SECRET` with the platform
+for that origin (`src/lib/oc/installation.ts`), so nothing else is uploaded
+by hand. One installation is live per project: the last sign-in owns the
+secret, and its origin must be the one the agents were deployed with. Lost
+the owner secret: `npm run setup -- --rotate`, put the new values on the
+host, redeploy; every existing login stops working.
 
-The app origin must be the HTTPS origin the coordinator can reach, because
-the managed connection's origin is pinned in the deployed agents. For a local
-run that is a tunnel (`ngrok http --domain=<host> 3100`); for a deployment
-it is the Worker's or the host's URL.
+The interim limitation, once: until memory documents carry topics, the topic
+index lives in Workers KV (Cloudflare), a volume (`OPENMUSE_STATE_DIR`:
+Docker, Fly, Render, Railway) or in-process memory (DigitalOcean, lost on
+restart); and until platform delivery lands, the return path runs on the
+Cloudflare cron trigger or an in-process timer (`OPENMUSE_RETURN_PATH=timer`,
+which the Docker image sets). Both directories are deleted when the platform
+has them.
 
-**Cloudflare Workers** (`wrangler.jsonc`): `npx wrangler login`, then
+**Vercel and Netlify are not supported yet.** TanStack Start documents both
+(Vercel through Nitro, Netlify through `@netlify/vite-plugin-tanstack-start`),
+and the app's server code is Web-API only, so the SSR and the session proxy
+would likely build. What is missing is the rest of the interim scaffolding:
+neither host has a persistent disk or a KV binding the state store speaks
+(a Netlify Blobs or Redis driver would have to be written), the return path
+would need a scheduled function or Vercel cron adapter (Vercel cron calls a
+GET path; the tick is a `POST` with a bearer token) and the app's custom
+server entry with the `scheduled` handler has not been tried under either
+plugin. Rather than a button that deploys an app whose topics vanish on
+every cold start, they wait for the platform's memory and delivery routes,
+after which the app needs neither a store nor a scheduler.
 
-```sh
-npm run deploy:cloudflare
-```
-
-creates the `OPENMUSE_STORE` KV namespace on first use (writing its id into
-`wrangler.jsonc`), builds the Worker, uploads the app's secrets from
-`.env.local` and deploys. The cron trigger in `wrangler.jsonc` runs the
-interim return path once a minute.
-
-**Any Node host** (Docker, Railway, Render, Fly, DigitalOcean): set the
-variables from `.env.example` in the host's environment, then
-
-```sh
-npm run build && npm start   # listens on PORT (default 3000)
-```
-
-The same source builds for both; `OPENMUSE_TARGET=cloudflare` selects the
-Cloudflare adapter at build time. On a long-lived host set
-`OPENMUSE_RETURN_PATH=timer` so the return path runs in-process; otherwise
-schedule `POST /api/internal/return-path/tick` with
-`Authorization: Bearer <OPENMUSE_AGENT_SECRET>` every minute.
+The same source builds for every host: `OPENMUSE_TARGET=cloudflare` selects
+the Cloudflare adapter at build time; the default build is served by srvx
+on any Node host (`npm run build && npm start`, listens on `PORT`).
 
 ## Environment variables
 
@@ -271,12 +284,12 @@ variable with one line each. Required: `OPENCOMPUTER_API_KEY`,
 | `OPENCOMPUTER_API_URL` | Default `https://app.opencomputer.dev` |
 | `OPENMUSE_OWNER_SECRET` | What the owner types into the login form |
 | `OPENMUSE_COOKIE_SECRET` | Signs the session cookie |
-| `OPENMUSE_AGENT_SECRET` | The installation secret the agents present to `/api/agent/*`; also uploaded as the project secret |
+| `OPENMUSE_AGENT_SECRET` | The installation secret the agents present to `/api/agent/*`; the app registers it as the project secret, allowed for its origin, on every owner sign-in |
 | `OPENMUSE_APP_ORIGIN` | The app's public HTTPS origin; default: the origin of each request |
 | `OPENMUSE_INSTALLATION_ID` | Part of every session idempotency key; default `default` |
 | `OPENMUSE_COORDINATOR_AGENT`, `OPENMUSE_WORKER_AGENT` | Cloud agent ids; default `openmuse-dev`, `openmuse-dev--topic-worker` |
 | `OPENMUSE_STATE_STORE` | `fs` (default), `kv` (Cloudflare), `memory` |
-| `OPENMUSE_STATE_DIR` | For `fs`: default `./.openmuse` |
+| `OPENMUSE_STATE_DIR` | For `fs`: default `./.openmuse` (the Docker image sets `/data`) |
 | `OPENMUSE_MEMORY` | `fixture` (default) or `platform` |
 | `OPENMUSE_RETURN_PATH` | `timer` runs the interim return path in-process |
 | `OPENMUSE_ALLOW_INSECURE_COOKIES` | `1` drops the `Secure` cookie attribute for plain-http localhost |
@@ -292,7 +305,10 @@ npm run dev                                       # http://localhost:3100, open 
 
 `npm run dev` runs the server in Node with the `fs` store;
 `npm run dev:cloudflare` runs it in workerd with a local KV namespace, the
-way it runs on Cloudflare. Sign in with the owner secret from `.env.local`.
+way it runs on Cloudflare. Sign in with the owner secret from `.env.local`;
+the sign-in registers the installation secret for the tunnel origin (the
+last sign-in wins, so signing in here moves it away from a deployed host
+until you sign in there again).
 
 `npm run check` runs the typecheck, Biome, the unit tests (Vitest) and the
 agent doctor; `npm run test:e2e` runs the Playwright suite against whatever
