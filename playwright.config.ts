@@ -17,10 +17,21 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    {
+      name: "desktop",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+      testIgnore: /mobile\.spec\.ts/,
+    },
     {
       name: "mobile",
-      use: { ...devices["iPhone 14"], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+      // Chromium with a phone viewport: one browser to install, the same layout rules.
+      use: {
+        ...devices["Pixel 7"],
+        browserName: "chromium",
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+      },
       testMatch: /mobile\.spec\.ts/,
     },
   ],

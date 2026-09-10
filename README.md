@@ -13,19 +13,25 @@ Working name. The public name is not decided.
 
 ```mermaid
 flowchart LR
-  B[Browser<br/>owner cookie] -->|owner routes, SSE| A[Next.js server routes<br/>holds the OC key]
+  B[Browser<br/>owner cookie, useAgent] -->|owner routes, session proxy| A[TanStack Start server routes<br/>holds the OC key]
   A -->|create or reuse by key, turns, events| C[Coordinator session<br/>agent openmuse-dev]
   A -->|create or reuse by key, turns, events| W[Worker session per topic<br/>agent openmuse-dev--topic-worker]
   C -->|start_topic, read_topic_notes, save_profile<br/>managed connection + installation secret| A
   W -->|save_notes<br/>managed connection + installation secret| A
   W -->|shell, read, write| S[(Sandbox)]
-  A -->|recall before each turn,<br/>CAS saves| M[Memory adapter<br/>fixture: JSON on disk<br/>later: project memory API]
+  A -->|recall before each turn,<br/>CAS saves| M[Memory adapter<br/>fixture: JSON documents in the state store<br/>later: project memory API]
   A -->|watch terminal worker turns,<br/>queue one coordinator turn per turn| C
 ```
 
-- `app/` Next.js App Router. `app/api/*` are the trusted routes: they hold
-  the OpenComputer key from the environment, authenticate the owner, and are
-  the only thing that talks to the platform.
+- `src/routes/` TanStack Start file routes. `src/routes/api/*` are the
+  trusted server routes: they hold the OpenComputer key from the
+  environment, authenticate the owner, and are the only thing that talks to
+  the platform. `src/routes/_app*` are the screens behind the login;
+  [docs/ui.md](docs/ui.md) describes the interface and shows it.
+- `src/components/` the interface: shadcn/ui on Tailwind v4, one
+  conversation on screen at a time, the browser attached to sessions with
+  `@opencomputer/react` (`useAgent`, attach mode) through the app's session
+  proxy.
 - `opencomputer/` the agent project: `coordinator` and `topic-worker`, deployed
   with the OpenComputer CLI. The worker has the harness shell and filesystem
   (`sandbox_exec` on the Durable Object runtime).
@@ -33,9 +39,25 @@ flowchart LR
   (`tools/app.ts`, generated from `scripts/templates/app-connection.ts` with
   the deployed origin) whose bearer secret OpenComputer attaches; agent code
   never sees it.
-- `lib/` the services: session lifecycle (`oc/`), owner auth (`auth/`), the
-  memory seam (`memory/`), topics (`topics/`), the coordinator conversation
-  (`conversation/`) and the interim return path (`return-path/`).
+- `src/lib/` the services: session lifecycle (`oc/`), owner auth (`auth/`,
+  Web Crypto), the memory seam (`memory/`), topics (`topics/`), the
+  coordinator conversation (`conversation/`), the interim state store
+  (`store/`, `state/`) and the interim return path (`return-path/`). Server
+  code uses Web APIs only, so one source builds for Cloudflare Workers and
+  for any Node host.
+- `src/server.ts` the server entry in the universal fetch-handler shape,
+  plus the `scheduled` handler for the Cloudflare cron trigger.
+
+The browser never holds the OpenComputer key. `@opencomputer/react` needs
+three routes under the app's own authentication, `GET /api/sessions/:id/events`,
+`POST /api/sessions/:id/turns` and `POST /api/sessions/:id/interrupt`
+(`src/routes/api/sessions/$id/$action.ts`); the app checks that the session
+belongs to this installation, composes the recall projection into each turn
+and strips it out of the events it returns. Until `@opencomputer/react`
+0.2.0 is on the registry, the dependency is the prebuilt package under
+`vendor/` (built from `react/` on branch `feat/project-memory` of
+diggerhq/opencomputer); it flips to the registry version when 0.2.0
+publishes.
 
 ## What is real today and what is a fixture
 
@@ -45,7 +67,7 @@ Real, against the OpenComputer Development environment:
   state-changing route; rate-limited login.
 - The coordinator session: created once per installation and deployment
   (idempotent by key), replayed from the session events API on every page
-  load, new turns streamed to the browser, Stop.
+  load, new turns polled to the browser from a cursor, Stop.
 - Topics: `start_topic` called by the coordinator through the managed
   connection; one worker session per topic, reused for follow-up work; the
   worker clones, runs and verifies in its sandbox; the topic panel shows the
@@ -59,19 +81,21 @@ the rest:
 
 | Concern | Today | File | When the platform has it |
 | --- | --- | --- | --- |
-| Memory store (documents, revisions, CAS, freeze) | JSON files under `.openmuse/memory/`, seeded from `fixtures/notes/` | `lib/memory/fixture-store.ts` | `lib/memory/platform.ts` (written against the documented routes, untested) is selected with `OPENMUSE_MEMORY=platform` |
-| Recall into the agent | The app reads the documents before each turn and carries the projection in the turn input as an `<openmuse-recall>` block | `lib/memory/recall.ts`, `lib/memory/envelope.ts` | Session `memory` bindings at create; the block and the two agent-side parsers are deleted |
+| Memory store (documents, revisions, CAS, freeze) | JSON documents in the state store, seeded from `fixtures/notes/` (bundled at build time) | `src/lib/memory/fixture-store.ts` | `src/lib/memory/platform.ts` (written against the documented routes, untested) is selected with `OPENMUSE_MEMORY=platform` |
+| Recall into the agent | The app reads the documents before each turn and carries the projection in the turn input as an `<openmuse-recall>` block; the session proxy strips it from the events the browser reads | `src/lib/memory/recall.ts`, `src/lib/memory/envelope.ts`, `src/routes/api/sessions/$id/$action.ts` | Session `memory` bindings at create; the block and the two agent-side parsers are deleted |
 | Agent-side `useMemory()` | `memory/index.ts` in each agent parses the block and returns `{ text, sources, writable }` | `opencomputer/agents/*/memory/index.ts` | `useMemory(profile)` / `useMemory(topics)` |
-| Agent saves | `save_notes` and `save_profile` tools call the app; the app supplies the expected revision it last recalled for that session | `opencomputer/agents/*/tools/save-*.ts`, `lib/topics/service.ts` | The platform's `memory_save`, `memory_read`, `memory_list`; the tools are deleted |
-| Topic index | The app's own JSON file (`.openmuse/state.json`): topic ids, worker session ids, invocation and delivery ledgers | `lib/state/store.ts` | The `topics` collection is the index; the file keeps only the session map |
-| Return path | A poller watches worker sessions for terminal turn events and queues one coordinator turn per worker turn (idempotent by worker turn id) | `lib/return-path/watcher.ts`, `instrumentation.ts`, `app/api/internal/return-path/tick` | Internal outcome delivery (work 025); the module is deleted |
+| Agent saves | `save_notes` and `save_profile` tools call the app; the app supplies the expected revision it last recalled for that session | `opencomputer/agents/*/tools/save-*.ts`, `src/lib/topics/service.ts` | The platform's `memory_save`, `memory_read`, `memory_list`; the tools are deleted |
+| Topic index | One JSON document (`state.json`) in the state store: topic ids, worker session ids, invocation and delivery ledgers | `src/lib/state/store.ts` | The `topics` collection is the index; the document keeps only the session map |
+| State store | `OPENMUSE_STATE_STORE`: `fs` (files under `OPENMUSE_STATE_DIR`, default `./.openmuse`), `kv` (a Workers KV namespace bound as `OPENMUSE_STORE`), `memory` (lost on restart, warns at start) | `src/lib/store/` | Deleted with the two rows above |
+| Return path | One pass (`tick`) reads worker sessions for terminal turn events and queues one coordinator turn per worker turn (idempotent by worker turn id). Drivers: the Cloudflare cron trigger, `POST /api/internal/return-path/tick` from any scheduler, or an in-process timer with `OPENMUSE_RETURN_PATH=timer` | `src/lib/return-path/`, `src/server.ts` | Internal outcome delivery (work 025); the directory is deleted |
+| Stop | The platform's `POST /sessions/:id/interrupt` is tried first; while the public edge answers 404 a turn in `interrupt` mode stops the running one (it spends a model turn) | `src/lib/oc/sessions.ts` | The interrupt route |
 
-There is no database. The state file and the fixture documents live on the
-server's disk under `OPENMUSE_STATE_DIR` (default `./.openmuse`). On a host
-without a persistent disk they do not survive a redeploy; in that case the
-coordinator session is found again through its idempotency key, topics are
-not. That is acceptable for the fixture phase and goes away with the memory
-routes.
+There is no database. On a host without a persistent disk the `fs` store
+does not survive a redeploy; in that case the coordinator session is found
+again through its idempotency key, topics are not. That is acceptable for
+the fixture phase and goes away with the memory routes. Workers KV is
+eventually consistent and last-writer-wins; for a single owner whose
+requests land in one location that is acceptable for the same phase.
 
 ## Evidence
 
@@ -129,12 +153,14 @@ and saved the notes through `save_notes` (revision `a4e142a2…`, 1,690 bytes,
 writer recorded as that session): 19:18:57 to 19:20:56, 25 tool calls. The
 topic summary in the panel changed while the worker ran.
 
-**Owner correction outside chat.** The notes were edited through the panel
+**Owner correction outside chat.** The notes were edited through the notes
 route: a save with a stale revision returned `409 conflict`; the save with the
 current revision appended an owner correction (Node 20 via nvm, npm only, no
 internet after 10:00). The next worker turn (`2a650e26…`, 26 s, no computer
 work) restated exactly those three constraints, rewrote the install step to a
-pre-downloaded tarball, and saved the reconciled notes.
+pre-downloaded tarball, and saved the reconciled notes. The redesigned notes
+panel exercises the same route and the conflict state end to end
+([docs/ui.md](docs/ui.md)).
 
 **Stop.** A worker turn running `date -u; sleep 150; date -u` was stopped
 after 10 s. The platform recorded `turn.cancelled` and started the Stop turn
@@ -172,12 +198,16 @@ What the platform made hard, precisely, so they can become bugs or gaps:
 - Tool call ids are not on `ToolExecutionContext`; `start_topic` derives its
   invocation id from the session id, message id and arguments, so two
   identical calls in one message converge on one admitted turn.
-- The public event log needs polling (`/events?after=`); the app polls
-  server-side and streams to the browser over SSE.
+- The public event log needs polling (`/events?after=`); `@opencomputer/react`
+  polls it from a cursor through the app's session proxy.
+- `POST /sessions/:id/interrupt` is not on the public edge yet (`404 route
+  not found` on 2026-09-10); the app falls back to the interrupt-mode turn.
+- `fetch(..., { redirect: "error" })` is not implemented in workerd; the
+  client uses `manual` and refuses any redirect itself.
 
 ## Deploy
 
-Requires Node 22.19+, an OpenComputer account and the CLI logged in
+Requires Node 22, an OpenComputer account and the CLI logged in
 (`npx opencomputer login`).
 
 ```sh
@@ -189,44 +219,68 @@ npm run setup -- --origin https://<the app's public https origin>
 
 `setup` generates `OPENMUSE_OWNER_SECRET`, `OPENMUSE_COOKIE_SECRET`,
 `OPENMUSE_AGENT_SECRET` and `OPENMUSE_INSTALLATION_ID` into the ignored
-`.env.local` (mode 600) and prints the owner secret once; links or creates the
-OpenComputer project `openmuse-dev`; uploads the agent secret as a project
-secret allowed only for the app origin; deploys both agents to Development;
-and prints the deploy instructions. It never prints the OpenComputer key.
-Re-run it after changing agent source. `npm run setup -- --rotate` issues new
-owner and cookie secrets; every existing login stops working.
+`.env.local` (mode 600), copies the OpenComputer key from the CLI login into
+it, and prints the owner secret once; links or creates the OpenComputer
+project `openmuse-dev`; uploads the agent secret as a project secret allowed
+only for the app origin; deploys both agents to Development; and prints the
+deploy instructions. It never prints the OpenComputer key. Re-run it after
+changing agent source. `npm run setup -- --rotate` issues new owner and
+cookie secrets; every existing login stops working.
 
 The app origin must be the HTTPS origin the coordinator can reach, because
 the managed connection's origin is pinned in the deployed agents. For a local
-run that is a tunnel (`ngrok http --domain=<host> 3100`); for Vercel it is the
-project URL.
+run that is a tunnel (`ngrok http --domain=<host> 3100`); for a deployment
+it is the Worker's or the host's URL.
 
-Vercel: create a project from this repository, set the variables below from
-`.env.local` plus `OPENCOMPUTER_API_KEY`, and deploy. Two consequences of
-running on functions in the fixture phase: the state file does not persist
-across deploys (see above), and the return path has no resident process, so
-add a cron calling `POST /api/internal/return-path/tick` with
-`Authorization: Bearer <OPENMUSE_AGENT_SECRET>` every minute. Both go away
-with the platform's memory and outcome delivery.
+**Cloudflare Workers** (`wrangler.jsonc`): `npx wrangler login`, then
+
+```sh
+npm run deploy:cloudflare
+```
+
+creates the `OPENMUSE_STORE` KV namespace on first use (writing its id into
+`wrangler.jsonc`), builds the Worker, uploads the app's secrets from
+`.env.local` and deploys. The cron trigger in `wrangler.jsonc` runs the
+interim return path once a minute.
+
+**Any Node host** (Docker, Railway, Render, Fly, DigitalOcean): set the
+variables from `.env.example` in the host's environment, then
+
+```sh
+npm run build && npm start   # listens on PORT (default 3000)
+```
+
+The same source builds for both; `OPENMUSE_TARGET=cloudflare` selects the
+Cloudflare adapter at build time. On a long-lived host set
+`OPENMUSE_RETURN_PATH=timer` so the return path runs in-process; otherwise
+schedule `POST /api/internal/return-path/tick` with
+`Authorization: Bearer <OPENMUSE_AGENT_SECRET>` every minute.
 
 ## Environment variables
 
+All configuration comes from the environment; `.env.example` lists every
+variable with one line each. Required: `OPENCOMPUTER_API_KEY`,
+`OPENCOMPUTER_PROJECT_ID`, `OPENMUSE_OWNER_SECRET`, `OPENMUSE_COOKIE_SECRET`,
+`OPENMUSE_AGENT_SECRET`. Everything else has a default.
+
 | Name | Purpose |
 | --- | --- |
-| `OPENCOMPUTER_API_KEY` | The OpenComputer key, server only. Locally, when unset, the CLI login in `~/.opencomputer/config.json` is used. |
-| `OPENCOMPUTER_API_URL` | `https://app.opencomputer.dev` |
+| `OPENCOMPUTER_API_KEY` | The OpenComputer key, server only |
 | `OPENCOMPUTER_PROJECT_ID` | The linked project |
-| `OPENCOMPUTER_ENVIRONMENT` | `development` or `production` |
-| `OPENMUSE_COORDINATOR_AGENT`, `OPENMUSE_WORKER_AGENT` | Cloud agent ids (`openmuse-dev`, `openmuse-dev--topic-worker`) |
+| `OPENCOMPUTER_ENVIRONMENT` | `development` (default) or `production` |
+| `OPENCOMPUTER_API_URL` | Default `https://app.opencomputer.dev` |
 | `OPENMUSE_OWNER_SECRET` | What the owner types into the login form |
 | `OPENMUSE_COOKIE_SECRET` | Signs the session cookie |
 | `OPENMUSE_AGENT_SECRET` | The installation secret the agents present to `/api/agent/*`; also uploaded as the project secret |
-| `OPENMUSE_INSTALLATION_ID` | Part of every session idempotency key |
-| `OPENMUSE_APP_ORIGIN` | The app's public HTTPS origin |
-| `OPENMUSE_STATE_DIR` | Where the state file and fixture documents live (default `./.openmuse`) |
+| `OPENMUSE_APP_ORIGIN` | The app's public HTTPS origin; default: the origin of each request |
+| `OPENMUSE_INSTALLATION_ID` | Part of every session idempotency key; default `default` |
+| `OPENMUSE_COORDINATOR_AGENT`, `OPENMUSE_WORKER_AGENT` | Cloud agent ids; default `openmuse-dev`, `openmuse-dev--topic-worker` |
+| `OPENMUSE_STATE_STORE` | `fs` (default), `kv` (Cloudflare), `memory` |
+| `OPENMUSE_STATE_DIR` | For `fs`: default `./.openmuse` |
 | `OPENMUSE_MEMORY` | `fixture` (default) or `platform` |
-| `OPENMUSE_RETURN_PATH_POLL` | `0` disables the in-process poller |
+| `OPENMUSE_RETURN_PATH` | `timer` runs the interim return path in-process |
 | `OPENMUSE_ALLOW_INSECURE_COOKIES` | `1` drops the `Secure` cookie attribute for plain-http localhost |
+| `PORT` | For `npm start`; default 3000 |
 
 ## Run locally
 
@@ -236,11 +290,17 @@ ngrok http --domain=<tunnel host> 3100            # or any HTTPS tunnel to 3100
 npm run dev                                       # http://localhost:3100, open the tunnel URL
 ```
 
-Sign in with the owner secret from `.env.local`. `npm run check` runs the
-typecheck, the unit tests and the agent doctor; `npm run deploy` redeploys
-the agents. Sessions pin the deployment they started on, so after a redeploy
-use Replace in the header (coordinator) or Replace worker in a topic to move
-to the new code; the successor starts from the current notes.
+`npm run dev` runs the server in Node with the `fs` store;
+`npm run dev:cloudflare` runs it in workerd with a local KV namespace, the
+way it runs on Cloudflare. Sign in with the owner secret from `.env.local`.
+
+`npm run check` runs the typecheck, Biome, the unit tests (Vitest) and the
+agent doctor; `npm run test:e2e` runs the Playwright suite against whatever
+listens on port 3100 (`BASE_URL` overrides it) and refreshes the screenshots
+in `docs/screenshots/`; it sends a handful of short turns to the real
+coordinator. `npm run deploy:agents` redeploys the agents. Sessions pin the
+deployment they started on, so after a redeploy start a new computer from a
+topic's Work panel; the successor starts from the current notes.
 
 ## Owner access
 
