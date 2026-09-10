@@ -46,21 +46,21 @@ export interface AppState {
 const EMPTY: AppState = { version: 1, topics: {}, returnPath: {} };
 
 let queue: Promise<unknown> = Promise.resolve();
-let cache: AppState | undefined;
 
 function file(): string {
   return join(env().stateDir, "state.json");
 }
 
+// Always read from disk: the return-path poller and the route handlers can be
+// separate module instances (Next bundles instrumentation separately), and
+// the file is the only shared truth.
 async function load(): Promise<AppState> {
-  if (cache) return cache;
   try {
-    cache = { ...EMPTY, ...(JSON.parse(await readFile(file(), "utf8")) as AppState) };
+    return { ...EMPTY, ...(JSON.parse(await readFile(file(), "utf8")) as AppState) };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    cache = EMPTY;
+    return EMPTY;
   }
-  return cache;
 }
 
 async function persist(state: AppState): Promise<void> {
@@ -68,7 +68,6 @@ async function persist(state: AppState): Promise<void> {
   const temp = `${file()}.${process.pid}.tmp`;
   await writeFile(temp, JSON.stringify(state, null, 2) + "\n", { mode: 0o600 });
   await rename(temp, file());
-  cache = state;
 }
 
 export function readState(): Promise<AppState> {

@@ -15,6 +15,7 @@ export interface ChatMessage {
 
 export interface Activity {
   readonly id: string;
+  readonly callId?: string;
   readonly turnId?: string;
   readonly at?: string;
   readonly kind: "tool.started" | "tool.completed" | "tool.failed" | "turn.started" | "turn.completed" | "turn.failed" | "turn.cancelled" | "runtime";
@@ -34,6 +35,27 @@ const OUTCOME_PREFIX = "[topic outcome]";
 function bounded(value: unknown, max = 2000): string {
   const text = typeof value === "string" ? value : JSON.stringify(value ?? "");
   return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+// The two runtimes shape tool events differently: the microVM harness sends
+// { tool, input, output }, the Durable Object runtime { id, input, content }
+// with the tool name arriving on tool.progress metadata.
+function toolName(data: Record<string, unknown>): string | undefined {
+  if (typeof data.tool === "string") return data.tool;
+  const metadata = data.metadata as Record<string, unknown> | undefined;
+  return typeof metadata?.tool === "string" ? metadata.tool : undefined;
+}
+
+function toolOutput(data: Record<string, unknown>): unknown {
+  if (data.output !== undefined) return data.output;
+  if (Array.isArray(data.content)) {
+    return data.content.map((part) => (typeof (part as { text?: unknown }).text === "string" ? (part as { text: string }).text : JSON.stringify(part))).join("\n");
+  }
+  return data.error ?? data.message ?? "";
+}
+
+function callId(data: Record<string, unknown>): string | undefined {
+  return typeof data.callId === "string" ? data.callId : typeof data.id === "string" ? data.id : undefined;
 }
 
 export function emptyTimeline(): Timeline {
@@ -73,14 +95,31 @@ export function applyEvent(timeline: Timeline, event: OcEvent): Timeline {
       break;
     }
     case "tool.started":
-      activity.push({ id: `a-${event.seq}`, turnId: event.turnId, at, kind: "tool.started", label: String(data.tool ?? "tool"), detail: bounded(data.input, 800) });
+      activity.push({ id: `a-${event.seq}`, callId: callId(data), turnId: event.turnId, at, kind: "tool.started", label: toolName(data) ?? "tool", detail: bounded(data.input, 800) });
       break;
-    case "tool.completed":
-      activity.push({ id: `a-${event.seq}`, turnId: event.turnId, at, kind: "tool.completed", label: String(data.tool ?? "tool"), detail: bounded(data.output, 1200) });
+    case "tool.progress": {
+      // Names the started entry on the runtime that reports the tool late.
+      const name = toolName(data);
+      const id = callId(data);
+      if (name && id) {
+        for (let index = activity.length - 1; index >= 0; index -= 1) {
+          if (activity[index].callId === id && activity[index].label === "tool") { activity[index] = { ...activity[index], label: name }; break; }
+        }
+      }
       break;
-    case "tool.failed":
-      activity.push({ id: `a-${event.seq}`, turnId: event.turnId, at, kind: "tool.failed", label: String(data.tool ?? "tool"), detail: bounded(data.error ?? data.message ?? data.output, 800) });
+    }
+    case "tool.completed": {
+      const id = callId(data);
+      const started = id ? activity.find((item) => item.callId === id && item.kind === "tool.started") : undefined;
+      activity.push({ id: `a-${event.seq}`, callId: id, turnId: event.turnId, at, kind: "tool.completed", label: toolName(data) ?? started?.label ?? "tool", detail: bounded(toolOutput(data), 1200) });
       break;
+    }
+    case "tool.failed": {
+      const id = callId(data);
+      const started = id ? activity.find((item) => item.callId === id && item.kind === "tool.started") : undefined;
+      activity.push({ id: `a-${event.seq}`, callId: id, turnId: event.turnId, at, kind: "tool.failed", label: toolName(data) ?? started?.label ?? "tool", detail: bounded(data.error ?? data.message ?? toolOutput(data), 800) });
+      break;
+    }
     case "turn.completed":
     case "turn.failed":
     case "turn.cancelled": {

@@ -10,8 +10,10 @@ export default function Agent() {
   const topic = notes.sources[0];
 
   // A real computer: the harness shell and filesystem, acquired when a tool
-  // first runs. Memory operations never need it.
+  // first runs. Memory operations never need it. On the Durable Object
+  // runtime the sandbox is reached through sandbox_exec instead of shell.
   useTool("shell");
+  useTool("sandbox_exec");
   useTool("read");
   useTool("write");
   useTool("glob");
@@ -20,7 +22,7 @@ export default function Agent() {
 
   return [
     `You are a topic worker for OpenMuse, the owner's personal assistant. Work on the assigned topic and task. Read the current notes and the owner profile first.
-You have a shell, a filesystem and unauthenticated network access in an isolated workspace; no credentials. Fixture files shipped with you are under ./fixtures.
+You have a shell, a filesystem and unauthenticated network access in an isolated workspace; no credentials. Run commands with the shell tool, or with sandbox_exec (a command string) when shell is unavailable or fails with a path error; the sandbox starts on the first command. Fixture files shipped with you are under ./fixtures.
 When working with code or data, run the necessary commands and verify the output; distinguish observations from guesses. Never claim a command ran unless you saw its output.
 Save only useful continuing knowledge with save_notes${notes.writable ? "" : " (not available right now)"}: constraints, sources, tested revisions and commands, decisions, unfinished work. Save at meaningful progress points, not only at the end. On a conflict result, reread the current text it returns, reconcile owner corrections, and save again.
 End with the result, the evidence (commands and their output) and what remains unresolved. A saved note is not proof the task succeeded. Request clarification in your final message rather than widening scope.
