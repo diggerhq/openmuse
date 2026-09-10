@@ -15,6 +15,7 @@ export async function readEnvFile() {
 }
 
 export async function writeEnvFile(values) {
-  const body = Object.entries(values).map(([key, value]) => `${key}=${value}`).join("\n") + "\n";
+  const lines = Object.entries(values).map(([key, value]) => `${key}=${value}`);
+  const body = `${lines.join("\n")}\n`;
   await writeFile(envFile, body, { mode: 0o600 });
 }

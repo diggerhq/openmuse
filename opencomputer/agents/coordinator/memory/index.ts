@@ -45,7 +45,11 @@ function parse(): { recall: Recall; message: string } {
   const end = text.indexOf(CLOSE);
   if (end === -1) return { recall: {}, message: text };
   let recall: Recall = {};
-  try { recall = JSON.parse(text.slice(OPEN.length, end)) as Recall; } catch { recall = {}; }
+  try {
+    recall = JSON.parse(text.slice(OPEN.length, end)) as Recall;
+  } catch {
+    recall = {};
+  }
   return { recall, message: text.slice(end + CLOSE.length).replace(/^\s+/, "") };
 }
 

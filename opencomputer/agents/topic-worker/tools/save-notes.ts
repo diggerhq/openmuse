@@ -1,4 +1,4 @@
-import { defineTool, type DataValue } from "@opencomputer/agent";
+import { type DataValue, defineTool } from "@opencomputer/agent";
 import { call } from "./app.js";
 
 // Stand-in for the platform's memory_save on this topic's document. The app
@@ -6,7 +6,8 @@ import { call } from "./app.js";
 // session, so the model never supplies one. Deleted when project memory lands.
 export const saveNotes = defineTool({
   name: "save_notes",
-  description: "Replace this topic's saved notes with the given text and a one-line summary. Save only continuing knowledge: constraints, sources, tested revisions and commands, decisions, unfinished work. Send the whole document. The result is saved, conflict (with the current text to reconcile and save again) or rejected.",
+  description:
+    "Replace this topic's saved notes with the given text and a one-line summary. Save only continuing knowledge: constraints, sources, tested revisions and commands, decisions, unfinished work. Send the whole document. The result is saved, conflict (with the current text to reconcile and save again) or rejected.",
   input: {
     type: "object",
     properties: {

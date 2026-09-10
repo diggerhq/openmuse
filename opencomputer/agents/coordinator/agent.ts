@@ -1,8 +1,8 @@
 import { useModel, useTool } from "@opencomputer/agent";
 import { useMessage, useProfile, useTopicsOverview } from "./memory/index.js";
-import { startTopic } from "./tools/start-topic.js";
 import { readTopicNotes } from "./tools/read-topic.js";
 import { saveProfile } from "./tools/save-profile.js";
+import { startTopic } from "./tools/start-topic.js";
 
 export default function Agent() {
   useModel("anthropic/claude-sonnet-4.6");
@@ -26,5 +26,7 @@ Report failures honestly; read current notes before suggesting next steps. Topic
     `## Topics (id | title | summary | last update)\n${topics.text || "(no topics yet)"}`,
     `## Current message\n${message || "(empty)"}`,
     outcome ? "The current message is a worker outcome report." : "",
-  ].filter(Boolean).join("\n\n");
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }

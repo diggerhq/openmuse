@@ -26,6 +26,10 @@ export async function call(method: "GET" | "POST" | "PUT", path: string, body?: 
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   let json: unknown = null;
-  try { json = await response.json(); } catch { json = null; }
+  try {
+    json = await response.json();
+  } catch {
+    json = null;
+  }
   return { status: response.status, json };
 }

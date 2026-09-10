@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "openmuse",
+  "main": "src/server.ts",
+  "compatibility_date": "2026-09-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // The interim return path: one tick a minute. Deleted with the module once
+  // the platform delivers worker outcomes itself.
+  "triggers": { "crons": ["* * * * *"] },
+  // The interim topic index and fixture notes. `npm run deploy:cloudflare`
+  // creates the namespace and fills in the id.
+  "kv_namespaces": [{ "binding": "OPENMUSE_STORE", "id": "openmuse-store-local" }],
+  "vars": { "OPENMUSE_STATE_STORE": "kv" }
+}

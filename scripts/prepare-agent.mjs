@@ -5,8 +5,9 @@
 //     with the app origin from OPENMUSE_APP_ORIGIN (the CLI reads
 //     defineConnection() origins from source, so it must be a literal)
 //  3. removes the CLI's previous generated runtime so doctor does not scan it.
-import { readdir, readFile, rm, writeFile } from "node:fs/promises";
+
 import { existsSync } from "node:fs";
+import { readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { loadEnvFile } from "node:process";
 import { parseNote } from "./notes.mjs";
 
@@ -16,7 +17,9 @@ if (existsSync(new URL(".env.local", root))) loadEnvFile(new URL(".env.local", r
 const agents = ["coordinator", "topic-worker"];
 
 const profile = parseNote(await readFile(new URL("fixtures/notes/profile.md", root), "utf8"));
-const topicFiles = (await readdir(new URL("fixtures/notes/topics/", root))).filter((name) => name.endsWith(".md")).sort();
+const topicFiles = (await readdir(new URL("fixtures/notes/topics/", root)))
+  .filter((name) => name.endsWith(".md"))
+  .sort();
 const topics = [];
 for (const name of topicFiles) {
   const note = parseNote(await readFile(new URL(`fixtures/notes/topics/${name}`, root), "utf8"));
@@ -29,7 +32,8 @@ export const fixtureTopicsOverview = ${JSON.stringify(overview)};
 `;
 
 const origin = process.env.OPENMUSE_APP_ORIGIN?.trim();
-if (!origin) throw new Error("Set OPENMUSE_APP_ORIGIN (npm run setup -- --origin https://...) before preparing the agents");
+if (!origin)
+  throw new Error("Set OPENMUSE_APP_ORIGIN (npm run setup -- --origin https://...) before preparing the agents");
 const url = new URL(origin);
 if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash) {
   throw new Error("OPENMUSE_APP_ORIGIN must be an https origin without a path");
