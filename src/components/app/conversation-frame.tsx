@@ -48,21 +48,20 @@ export function ConversationFrame({
     if (!panelOpen && !handle.isCollapsed()) handle.collapse();
   }, [panelOpen, isMobile]);
 
+  // On a phone the panel is a sheet; the label, the pressed state and the
+  // icon all follow the state the button actually toggles.
+  const open = isMobile ? sheetOpen : panelOpen;
   const toggle = (
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
-          aria-label={panelOpen ? `Hide ${panelTitle.toLowerCase()}` : `Show ${panelTitle.toLowerCase()}`}
-          aria-pressed={isMobile ? sheetOpen : panelOpen}
+          aria-label={open ? `Hide ${panelTitle.toLowerCase()}` : `Show ${panelTitle.toLowerCase()}`}
+          aria-pressed={open}
           onClick={() => (isMobile ? setSheetOpen(!sheetOpen) : setPanelOpen(!panelOpen))}
         >
-          {(isMobile ? sheetOpen : panelOpen) ? (
-            <PanelRightCloseIcon className="size-4" />
-          ) : (
-            <PanelRightOpenIcon className="size-4" />
-          )}
+          {open ? <PanelRightCloseIcon className="size-4" /> : <PanelRightOpenIcon className="size-4" />}
         </Button>
       </TooltipTrigger>
       <TooltipContent>{panelTitle}</TooltipContent>
