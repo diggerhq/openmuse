@@ -27,7 +27,8 @@ flowchart LR
   the OpenComputer key from the environment, authenticate the owner, and are
   the only thing that talks to the platform.
 - `opencomputer/` the agent project: `coordinator` and `topic-worker`, deployed
-  with the OpenComputer CLI. The worker has the harness shell and filesystem.
+  with the OpenComputer CLI. The worker has the harness shell and filesystem
+  (`sandbox_exec` on the Durable Object runtime).
   Both call back into the app through one declared managed connection
   (`tools/app.ts`, generated from `scripts/templates/app-connection.ts` with
   the deployed origin) whose bearer secret OpenComputer attaches; agent code
@@ -75,9 +76,12 @@ routes.
 ## Evidence
 
 Runs in OpenComputer Development, project `openmuse-dev`
-(`prj_549520fd4be643b1aa6068cbc2610593`), model `anthropic/claude-sonnet-5`,
-app reached through an HTTPS tunnel at port 3100. The transcripts are in the
-sessions below; the numbers come from their event logs.
+(`prj_549520fd4be643b1aa6068cbc2610593`), app reached through an HTTPS tunnel
+at port 3100, on 2026-09-10 (times UTC). The first three runs were on the
+microVM runtime with `anthropic/claude-sonnet-5`; the later ones on the
+Durable Object runtime with `anthropic/claude-sonnet-4.6` (see the platform
+notes). The transcripts are in the sessions below; the numbers come from
+their event logs.
 
 **A real conversation.** Coordinator session `bd75ea2a-71f5-5bd1-851c-cc88090aefa3`.
 First turn: "What do you know about me, and what topics are open?" answered
@@ -109,8 +113,67 @@ workers ran. Both finished; the return path queued two coordinator turns
 coordinator relayed both results in the same conversation. Reopening the
 page replayed all of it from the session events.
 
-**Follow-up on the same topic, owner correction, replacement.** See the
-section below once recorded.
+**Replacement after a redeploy.** Sessions pin their deployment. After the
+agents were redeployed the coordinator was replaced from the header
+(`bd75ea2a…` ended, successor `c42085da…`, then `e5057323…`) and both workers
+from their topic panels; each successor was admitted under a key that names
+its predecessor and started from the current notes.
+
+**Follow-up on the same topic, with notes saved.** "Attendees will be on Node
+20 LTS, not 22; re-verify and save what you verify." The coordinator read the
+topic and called `start_topic` with the same `workshop-demo` id; the worker
+session `1b74359a-7483-c8d4-b15d-0ed43f4857d6` (Durable Object runtime, the
+sandbox started lazily on its first command in 26 s) cloned the repository,
+installed Node 20.20.2 with `n`, reproduced the failure and verified the fix,
+and saved the notes through `save_notes` (revision `a4e142a2…`, 1,690 bytes,
+writer recorded as that session): 19:18:57 to 19:20:56, 25 tool calls. The
+topic summary in the panel changed while the worker ran.
+
+**Owner correction outside chat.** The notes were edited through the panel
+route: a save with a stale revision returned `409 conflict`; the save with the
+current revision appended an owner correction (Node 20 via nvm, npm only, no
+internet after 10:00). The next worker turn (`2a650e26…`, 26 s, no computer
+work) restated exactly those three constraints, rewrote the install step to a
+pre-downloaded tarball, and saved the reconciled notes.
+
+**Stop.** A worker turn running `date -u; sleep 150; date -u` was stopped
+after 10 s. The platform recorded `turn.cancelled` and started the Stop turn
+at once, but the runtime did not interrupt the command: it ran until the
+sandbox's own 120 s command timeout killed it (`SIGKILL, timedOut`), and the
+reply arrived 1 min 50 s after Stop. The cancelled turn reached the
+coordinator as a `cancelled` outcome. Stop is a turn-record interruption
+today, not a runtime cancellation; that is the platform's work 020.
+
+## Platform notes from the build
+
+What the platform made hard, precisely, so they can become bugs or gaps:
+
+- `useSessionData()` has no public write route: the backend has
+  `PUT /v1/sessions/:id/data`, the api-edge does not expose it. Recall
+  therefore travels inside the turn input until memory bindings exist.
+- New deployments started landing on the Durable Object runtime
+  (`workerd-lazy-sandbox`) during the build; the first deployment had been a
+  microVM. On that runtime `useModel` with anything but
+  `anthropic/claude-sonnet-4.6` fails every turn, the harness `shell`, `read`,
+  `glob` and `grep` tools fail with a `path ... Received 'undefined'` error,
+  and the sandbox is reachable only through the host-added `sandbox_exec`
+  tool. The worker registers both; the microVM evidence above used `shell`.
+- `turn.failed` carries a generic message through the API and the dashboard;
+  the real reason (`This Workerd slice cannot yet switch to ...`) was found by
+  reading the runtime source.
+- Session create with a reused `Idempotency-Key` returns `409` after a
+  redeploy because the resolved deployment id differs; the keys here include
+  the deployment id, so a redeploy admits a new session on purpose.
+- There is no bare interrupt route; Stop is a turn in `interrupt` mode, which
+  spends a model turn, and the runtime does not cancel the running command.
+- Tool events differ between runtimes (`{ tool, input, output }` on the
+  microVM, `{ id, input, content }` plus the name on `tool.progress` on the
+  Durable Object); the reducer handles both.
+- Tool call ids are not on `ToolExecutionContext`; `start_topic` derives its
+  invocation id from the session id, message id and arguments, so two
+  identical calls in one message converge on one admitted turn.
+- The public event log needs polling (`/events?after=`); the app polls
+  server-side and streams to the browser over SSE.
 
 ## Deploy
 

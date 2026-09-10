@@ -11,6 +11,7 @@
 // start, started from instrumentation.ts) or one tick at a time through
 // POST /api/internal/return-path/tick for hosts without a resident process.
 import { allEvents } from "@/lib/oc/client";
+import { readSession } from "@/lib/oc/sessions";
 import { readState, updateState } from "@/lib/state/store";
 import { sendAppMessage } from "@/lib/conversation/service";
 import { turnResult } from "@/lib/events/messages";
@@ -52,13 +53,14 @@ export async function tick(): Promise<number> {
       const cursor = Math.max(ledger.cursor, ...events.map((event) => event.seq));
       const terminal = events.filter((event) => event.turnId && (event.type === "turn.completed" || event.type === "turn.failed" || event.type === "turn.cancelled"));
       const deliveredNow: Record<string, string> = {};
+      // The session record names each turn's mode; a Stop turn's own
+      // completion is not an outcome worth reporting, the interrupted turn's
+      // cancellation is.
+      const turns = terminal.length ? (await readSession(sessionId))?.turns ?? [] : [];
       for (const event of terminal) {
         const workerTurnId = event.turnId!;
         if (ledger.delivered[workerTurnId] || deliveredNow[workerTurnId]) continue;
-        // A [stop] turn's own completion is not an outcome worth reporting; the interrupted turn's cancellation is.
-        const received = events.find((candidate) => candidate.turnId === workerTurnId && candidate.type === "message.received");
-        const input = typeof received?.data.input === "string" ? received.data.input : "";
-        if (/<\/openmuse-recall>\s*\[stop\]/.test(input) || input.startsWith("[stop]")) { deliveredNow[workerTurnId] = "skipped"; continue; }
+        if (turns.find((turn) => turn.id === workerTurnId)?.mode === "interrupt") { deliveredNow[workerTurnId] = "skipped"; continue; }
         const result = turnResult(events, workerTurnId);
         if (result.status === "running") continue;
         const outcome: Outcome = { topicId: topic.id, title: topic.title, workerSessionId: sessionId, workerTurnId, status: result.status, text: result.text, detail: result.detail };
