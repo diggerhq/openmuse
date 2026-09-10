@@ -1,0 +1,34 @@
+{
+  "name": "openmuse",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "setup": "node scripts/setup.mjs",
+    "prepare:agent": "node scripts/prepare-agent.mjs",
+    "predoctor": "npm run prepare:agent",
+    "doctor": "opencomputer doctor",
+    "predeploy": "npm run prepare:agent",
+    "deploy": "opencomputer deploy --alias development",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p opencomputer/tsconfig.json",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run typecheck && npm test && npm run doctor"
+  },
+  "dependencies": {
+    "next": "16.3.4",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@opencomputer/agent": "0.5.3",
+    "@opencomputer/cli": "0.6.9",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.9.0"
+  },
+  "engines": { "node": ">=22.19.0" }
+}

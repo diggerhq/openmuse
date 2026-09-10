@@ -1,0 +1,16 @@
+node_modules/
+.next/
+out/
+.env
+.env.*
+!.env.example
+.opencomputer/
+.openmuse/
+opencomputer/agents/*/.opencomputer/
+opencomputer/agents/*/workspace/
+opencomputer/agents/*/memory/fixtures.generated.ts
+*.log
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+opencomputer/agents/*/tools/app.ts
