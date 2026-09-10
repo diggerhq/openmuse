@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  serverExternalPackages: [],
+  agentRules: false,
+  turbopack: { root: __dirname },
   headers: async () => [
     {
       source: "/(.*)",

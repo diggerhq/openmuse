@@ -1,12 +1,13 @@
 // Memory adapter, agent side (topic worker).
 //
-// Today the app writes the current profile and this topic's notes into the
-// session's data before every turn (lib/memory/recall.ts) and saves go
-// through the save_notes tool over the managed connection. When project
-// memory lands, each hook becomes `useMemory(profile)` / `useMemory(topics)`,
-// save_notes is deleted (the platform supplies memory_save), and the fixture
-// fallback goes with it.
-import { useSessionData, type DataValue } from "@opencomputer/agent";
+// Today the app recalls the owner profile and this topic's notes before every
+// turn and carries the projection inside the turn input as a marked block
+// (lib/memory/recall.ts); saves go through the save_notes tool over the
+// managed connection. When project memory lands, each hook becomes one line,
+// useMemory(profile) / useMemory(topics), useMessage() becomes
+// useInput().text, save_notes is deleted (the platform supplies memory_save),
+// and the fixture fallback goes with it.
+import { useInput } from "@opencomputer/agent";
 import { fixtureProfile } from "./fixtures.generated.js";
 
 export interface MemorySource {
@@ -31,14 +32,22 @@ interface RecalledDocument {
   readonly writable: boolean;
 }
 
-interface WorkerRecall {
+interface Recall {
   readonly profile?: RecalledDocument;
   readonly topic?: RecalledDocument;
 }
 
-function recall(): WorkerRecall {
-  const value = useSessionData<DataValue>("memory");
-  return (value ?? {}) as unknown as WorkerRecall;
+const OPEN = "<openmuse-recall>";
+const CLOSE = "</openmuse-recall>";
+
+function parse(): { recall: Recall; message: string } {
+  const text = useInput().text ?? "";
+  if (!text.startsWith(OPEN)) return { recall: {}, message: text };
+  const end = text.indexOf(CLOSE);
+  if (end === -1) return { recall: {}, message: text };
+  let recall: Recall = {};
+  try { recall = JSON.parse(text.slice(OPEN.length, end)) as Recall; } catch { recall = {}; }
+  return { recall, message: text.slice(end + CLOSE.length).replace(/^\s+/, "") };
 }
 
 function project(doc: RecalledDocument | undefined, fallback: string): MemoryProjection {
@@ -50,10 +59,15 @@ function project(doc: RecalledDocument | undefined, fallback: string): MemoryPro
   };
 }
 
+/** The task text without the recall block. */
+export function useMessage(): string {
+  return parse().message;
+}
+
 export function useProfile(): MemoryProjection {
-  return project(recall().profile, fixtureProfile);
+  return project(parse().recall.profile, fixtureProfile);
 }
 
 export function useTopicNotes(): MemoryProjection {
-  return project(recall().topic, "");
+  return project(parse().recall.topic, "");
 }

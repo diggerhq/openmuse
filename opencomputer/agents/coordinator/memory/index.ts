@@ -1,12 +1,12 @@
 // Memory adapter, agent side (coordinator).
 //
-// Today the app writes the current profile document and the topic overview
-// into this session's data before every turn (lib/memory/recall.ts), and this
-// module projects them in the same shape the platform's useMemory() will
-// return. When project memory lands, the body of each hook becomes one line:
-//   useMemory(profile) / useMemory(topics)
-// and the fixture fallback plus the app-side recall are deleted.
-import { useSessionData, type DataValue } from "@opencomputer/agent";
+// Today the app recalls the current profile document and the topic overview
+// before every turn and carries the projection inside the turn input as a
+// marked block (lib/memory/recall.ts); this module parses it out and projects
+// it in the shape the platform's useMemory() will return. When project memory
+// lands, each hook becomes one line, useMemory(profile) / useMemory(topics),
+// useMessage() becomes useInput().text, and the fixture fallback is deleted.
+import { useInput } from "@opencomputer/agent";
 import { fixtureProfile, fixtureTopicsOverview } from "./fixtures.generated.js";
 
 export interface MemorySource {
@@ -31,23 +31,31 @@ interface RecalledDocument {
   readonly writable: boolean;
 }
 
-interface RecalledOverview {
-  readonly text: string;
-  readonly sources: readonly MemorySource[];
-}
-
-interface CoordinatorRecall {
+interface Recall {
   readonly profile?: RecalledDocument;
-  readonly overview?: RecalledOverview;
+  readonly overview?: { readonly text: string; readonly sources: readonly MemorySource[] };
 }
 
-function recall(): CoordinatorRecall {
-  const value = useSessionData<DataValue>("memory");
-  return (value ?? {}) as unknown as CoordinatorRecall;
+const OPEN = "<openmuse-recall>";
+const CLOSE = "</openmuse-recall>";
+
+function parse(): { recall: Recall; message: string } {
+  const text = useInput().text ?? "";
+  if (!text.startsWith(OPEN)) return { recall: {}, message: text };
+  const end = text.indexOf(CLOSE);
+  if (end === -1) return { recall: {}, message: text };
+  let recall: Recall = {};
+  try { recall = JSON.parse(text.slice(OPEN.length, end)) as Recall; } catch { recall = {}; }
+  return { recall, message: text.slice(end + CLOSE.length).replace(/^\s+/, "") };
+}
+
+/** The owner's (or the app's) message without the recall block. */
+export function useMessage(): string {
+  return parse().message;
 }
 
 export function useProfile(): MemoryProjection {
-  const doc = recall().profile;
+  const doc = parse().recall.profile;
   if (!doc) return { text: fixtureProfile, sources: [], writable: false };
   return {
     text: doc.text,
@@ -57,7 +65,7 @@ export function useProfile(): MemoryProjection {
 }
 
 export function useTopicsOverview(): MemoryProjection {
-  const overview = recall().overview;
+  const overview = parse().recall.overview;
   if (!overview) return { text: fixtureTopicsOverview, sources: [], writable: false };
   return { text: overview.text, sources: overview.sources, writable: false };
 }
