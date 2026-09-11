@@ -15,6 +15,7 @@ outcome delivery. The README serves people; this file serves agents.
 - `src/lib/oc/` the management API client and session helpers; `src/lib/auth/` the owner cookie
 - `src/lib/state/`, `src/lib/store/` the session map (which sessions this installation owns) and its fs, kv and memory drivers
 - `src/components/` the interface; `src/lib/events/` the tool-activity reducer; `src/lib/transcript.ts` the dev-only log
+- `docs/configuration.md` credentials, origin and storage; `docs/development.md` checks, session replacement and outcome delivery
 - `docs/deploy/` one page per host; `e2e/` Playwright; `test/` Vitest
 
 ## Commands

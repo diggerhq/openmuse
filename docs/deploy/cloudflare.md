@@ -8,10 +8,10 @@ private.
 What runs where: the app is one Worker (`wrangler.jsonc`); the session map
 (which coordinator and worker sessions this installation owns) lives in a
 Workers KV namespace bound as `OPENMUSE_STORE` (`OPENMUSE_STATE_STORE=kv` is
-set in `vars`). Notes are project memory on OpenComputer and worker
-outcomes are delivered by the platform, so the Worker has no cron trigger
-and no scheduled handler. The evidence below predates that change: it was
-recorded with the cron trigger and the fixture notes the Worker then had.
+set in `vars`). Notes are project memory on OpenComputer. Worker outcomes
+use platform subscriptions when available; otherwise the cron trigger runs
+the [fallback return path](../development.md#outcome-delivery). The evidence
+below was recorded with that fallback and the earlier fixture-note storage.
 
 ## Before either path
 
