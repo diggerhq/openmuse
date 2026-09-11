@@ -15,6 +15,7 @@ import {
   sessionUsable,
 } from "@/lib/oc/sessions";
 import { type CoordinatorRecord, readState, updateState } from "@/lib/state/store";
+import { record } from "@/lib/transcript";
 
 export const PROFILE_DOCUMENT = "owner";
 
@@ -49,11 +50,11 @@ export async function coordinatorSessionId(): Promise<string> {
   const predecessor = state.coordinator?.sessionId ?? state.previousCoordinatorSessionIds?.at(-1);
   const key = `coordinator/${deploymentId}${predecessor ? `/after/${predecessor}` : ""}`;
   const created = await createOrReuseSession(env().coordinatorAgent, key, COORDINATOR_MEMORY);
-  const record = await updateState((current) => {
+  const coordinator = await updateState((current) => {
     const next: CoordinatorRecord = { sessionId: created.id, deploymentId };
     return { state: { ...current, coordinator: next }, result: next };
   });
-  await ensureOutcomeSubscription(record);
+  await ensureOutcomeSubscription(coordinator);
   return created.id;
 }
 
@@ -66,28 +67,29 @@ export async function coordinatorSessionId(): Promise<string> {
 // most once a minute, so the app heals without a restart.
 let subscriptionAttemptAt = 0;
 
-async function ensureOutcomeSubscription(record: CoordinatorRecord): Promise<void> {
-  if (record.subscriptionId || Date.now() - subscriptionAttemptAt < 60_000) return;
+async function ensureOutcomeSubscription(coordinator: CoordinatorRecord): Promise<void> {
+  if (coordinator.subscriptionId || Date.now() - subscriptionAttemptAt < 60_000) return;
   subscriptionAttemptAt = Date.now();
   try {
     const subscription = await oc.createEventSubscription({
       agentId: env().workerAgent,
       events: ["turn.completed", "turn.failed", "turn.cancelled"],
-      destination: { type: "session", sessionId: record.sessionId },
+      destination: { type: "session", sessionId: coordinator.sessionId },
       environment: env().environment,
     });
     await updateState((current) => {
-      if (current.coordinator?.sessionId !== record.sessionId) return { state: current, result: undefined };
+      if (current.coordinator?.sessionId !== coordinator.sessionId) return { state: current, result: undefined };
       return {
         state: { ...current, coordinator: { ...current.coordinator, subscriptionId: subscription.id } },
         result: undefined,
       };
     });
+    record({ kind: "subscription.created", sessionId: coordinator.sessionId, subscriptionId: subscription.id });
     console.log(
       JSON.stringify({
         level: "info",
         event: "return_path.subscribed",
-        sessionId: record.sessionId,
+        sessionId: coordinator.sessionId,
         subscriptionId: subscription.id,
       }),
     );
@@ -96,7 +98,7 @@ async function ensureOutcomeSubscription(record: CoordinatorRecord): Promise<voi
       JSON.stringify({
         level: "warn",
         event: "return_path.subscription_failed",
-        sessionId: record.sessionId,
+        sessionId: coordinator.sessionId,
         status: error instanceof OcError ? error.status : undefined,
         code: error instanceof OcError ? error.code : undefined,
         message: error instanceof Error ? error.message : String(error),

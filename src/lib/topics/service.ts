@@ -19,6 +19,7 @@ import {
   sessionUsable,
 } from "@/lib/oc/sessions";
 import { readState, type TopicRecord, updateState } from "@/lib/state/store";
+import { record } from "@/lib/transcript";
 
 export type StartTopicResult =
   | {
@@ -125,6 +126,15 @@ export async function startTopic(input: {
   const sessionId = await ensureWorkerSession(await ensureTopicRecord(topicId));
   // The turn key is the invocation: the platform returns the same turn for a retry.
   const turn = await queueTurn(sessionId, input.task, `invocation/${input.invocationId}`);
+  record({
+    kind: "topic.started",
+    topicId,
+    title: document.title,
+    sessionId,
+    turnId: turn.turnId,
+    newTopic,
+    duplicate: turn.duplicate,
+  });
   return {
     status: "started",
     topicId,

@@ -354,14 +354,31 @@ notes into project memory where they do not exist yet; `npx opencomputer
 memory list topics` and `memory show topics workshop-demo` read them outside
 the app.
 
+The dev server holds port 3100 and refuses to move (`--strictPort`): a
+second `npm run dev` fails instead of silently taking the next port with
+the same installation. `GET /api/health` names the installation a server
+runs as.
+
+While the dev server runs it writes `.openmuse/transcript.jsonl` (the state
+directory, gitignored): one JSON line per owner message, coordinator or
+worker reply, topic start, worker outcome and Stop, with timestamps and the
+session and turn ids, plus the `turn.*`, `memory.saved` and `session.failed`
+events the browser received. It is what the owner saw, for debugging a
+conversation against the sessions in the OpenComputer dashboard. Only the
+Vite dev server writes it (`import.meta.env.MODE === "development"`, with
+the `fs` store); production builds compile the code path out.
+
 `npm run check` runs the typecheck, Biome, the unit tests (Vitest) and the
 agent doctor. `npm run test:e2e` runs the Playwright suite against the real
-Development environment as its own installation: it starts a second server
+Development environment as its own installation: it starts its own server
 on port 3101 with installation id `e2e` and state under `.openmuse-e2e/`,
 so its coordinator and worker sessions are separate from yours (notes are
 shared: the suite restores what it edits), and it deletes that
-installation's outcome subscription when it ends; `BASE_URL` points it at
-another server instead. It sends a handful of short coordinator turns and
+installation's outcome subscription when it ends. Before any test runs it
+checks that the server it targets reports installation `e2e` on
+`/api/health` and aborts otherwise; it never reuses a server it finds on
+its port, and `BASE_URL` may point it at another server only if that one
+passes the same check. It sends a handful of short coordinator turns and
 one worker turn that uses the sandbox. `SCREENSHOT_DIR=docs/screenshots`
 refreshes the screenshots in [docs/ui.md](docs/ui.md). `npm run
 deploy:agents` redeploys the agents. Sessions pin the deployment they

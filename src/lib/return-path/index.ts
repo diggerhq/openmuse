@@ -23,6 +23,7 @@ import { env } from "@/lib/env";
 import { allEvents, type OcEvent } from "@/lib/oc/client";
 import { queueTurn, readSession } from "@/lib/oc/sessions";
 import { readState, updateState } from "@/lib/state/store";
+import { record } from "@/lib/transcript";
 
 // The platform bounds a delivered result to 16 KB.
 const MAX_RESULT_BYTES = 16 * 1024;
@@ -135,6 +136,13 @@ export async function tick(): Promise<number> {
         try {
           const coordinator = await coordinatorSessionId();
           const turn = await queueTurn(coordinator, outcomeText(outcome), `outcome/${workerTurnId}`);
+          record({
+            kind: "outcome.queued",
+            workerSessionId: sessionId,
+            workerTurnId,
+            sessionId: coordinator,
+            turnId: turn.turnId,
+          });
           deliveredNow[workerTurnId] = turn.turnId;
           delivered += 1;
         } catch (error) {

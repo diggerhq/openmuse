@@ -12,6 +12,7 @@ import { bad, failure, readJson } from "@/lib/http/json";
 import { oc } from "@/lib/oc/client";
 import { interruptSession } from "@/lib/oc/sessions";
 import { continueTopic, STOP_WORKER, sessionRole } from "@/lib/topics/service";
+import { record, recordEvents } from "@/lib/transcript";
 
 const SESSION_ID = /^[A-Za-z0-9-]{8,64}$/;
 
@@ -22,10 +23,12 @@ export const Route = createFileRoute("/api/sessions/$id/$action")({
         const guard = await requireOwner(request);
         if (!guard.ok) return guard.response;
         if (params.action !== "events" || !SESSION_ID.test(params.id)) return bad("not_found", 404);
-        if (!(await sessionRole(params.id))) return bad("not_found", 404);
+        const role = await sessionRole(params.id);
+        if (!role) return bad("not_found", 404);
         const after = Number(new URL(request.url).searchParams.get("after") ?? "0");
         try {
           const events = await oc.events(params.id, Number.isFinite(after) && after > 0 ? after : 0, request.signal);
+          recordEvents(role.kind, params.id, events);
           return Response.json({ events });
         } catch (error) {
           return failure(error);
@@ -39,8 +42,10 @@ export const Route = createFileRoute("/api/sessions/$id/$action")({
         if (!role) return bad("not_found", 404);
         try {
           if (params.action === "interrupt") {
-            if (role.kind === "coordinator") return Response.json(await stopCoordinator(), { status: 202 });
-            return Response.json(await interruptSession(params.id, STOP_WORKER), { status: 202 });
+            const stopped =
+              role.kind === "coordinator" ? await stopCoordinator() : await interruptSession(params.id, STOP_WORKER);
+            record({ kind: "stop.requested", conversation: role.kind, sessionId: params.id, turnId: stopped.turnId });
+            return Response.json(stopped, { status: 202 });
           }
           if (params.action !== "turns") return bad("not_found", 404);
           const body = await readJson<{ input?: string; idempotencyKey?: string }>(request, 64 * 1024);
@@ -50,9 +55,20 @@ export const Route = createFileRoute("/api/sessions/$id/$action")({
             typeof body?.idempotencyKey === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(body.idempotencyKey)
               ? body.idempotencyKey
               : undefined;
-          if (role.kind === "coordinator") return Response.json(await sendOwnerMessage(text, key), { status: 202 });
-          if (!role.current) return bad("This worker session has ended; the next task starts a new one.", 409);
-          return Response.json(await continueTopic(role.topicId, text, key), { status: 202 });
+          if (role.kind === "worker" && !role.current)
+            return bad("This worker session has ended; the next task starts a new one.", 409);
+          const turn =
+            role.kind === "coordinator"
+              ? await sendOwnerMessage(text, key)
+              : await continueTopic(role.topicId, text, key);
+          record({
+            kind: "owner.message",
+            conversation: role.kind,
+            sessionId: turn.sessionId,
+            turnId: turn.turnId,
+            text,
+          });
+          return Response.json(turn, { status: 202 });
         } catch (error) {
           const message = error instanceof Error ? error.message : "";
           if (message === "not_found") return bad("not_found", 404);
