@@ -3,8 +3,10 @@
 One conversation on screen at a time. The sidebar lists where you can go,
 the centre is the conversation you picked, the right panel is what belongs
 to it. The screenshots below were taken by the end-to-end suite
-(`npm run test:e2e`) against the real OpenComputer Development environment,
-at 1440x900 and 390x844.
+(`SCREENSHOT_DIR=docs/screenshots npm run test:e2e`) against the real
+OpenComputer Development environment, at 1440x900 and 390x844, on
+2026-09-10 with the owner's populated conversation; the suite now runs as
+its own installation, so a refresh starts from an empty main conversation.
 
 ## Information architecture
 
@@ -25,9 +27,11 @@ at 1440x900 and 390x844.
 ```
 
 - **Main conversation** (`/`) is the coordinator's chat with the owner. When a
-  topic finishes work, the outcome arrives here as a card that links to the
-  topic. The panel shows the owner profile the assistant keeps, and which
-  topics are busy right now.
+  topic finishes work, the platform delivers the worker's outcome to the
+  coordinator; the conversation shows it as a card that names the topic
+  (from the worker session, or from the "Topic:" line the worker puts
+  first) and links to it. The panel shows the owner profile the assistant
+  keeps in project memory, and which topics are busy right now.
 - **A topic** (`/topics/<id>`) is that topic's own conversation with its
   worker: the tasks it was given, its replies, and inside each reply the
   computer work it did as compact rows (what ran, how long, the result).
@@ -81,8 +85,11 @@ at 1440x900 and 390x844.
 - "Saved" appears only after the server confirmed the write; until then the
   editor says "Unsaved changes" or "Saving…".
 - A save that lost the race (the assistant or another tab saved first) is
-  refused by the server's compare-and-swap; the panel shows the server's
-  text and keeps yours. "Use their text" or "Keep mine, then save over it".
+  refused by the platform's revision check (`412`); the panel shows the
+  server's text and keeps yours. "Use their text" or "Keep mine, then save
+  over it". Notes are project memory documents: the same text the worker
+  reads through its binding and saves with `memory_save`, and the same the
+  OpenComputer CLI's `memory show` returns.
 - If the notes change on the server while you are editing, the panel says so
   and offers to load their version; it never replaces your draft.
 - A failed reply shows its reason inside the message. A stopped reply says
@@ -112,7 +119,7 @@ routes/_app.tsx             owner guard (server function reads the cookie) → A
     conversation/use-conversation.ts  useAgent (attach mode) + tool activity + connectivity + clock
     conversation/conversation-view    reconnect banner, MessageList, Composer
       message-list.tsx                sticks to the bottom, pages long histories
-      message.tsx                     OwnerMessage, AssistantMessage (ToolActivity + Markdown), OutcomeCard, StopNote
+      message.tsx                     OwnerMessage, AssistantMessage (ToolActivity + Markdown), OutcomeCard (a delivered worker outcome), StopNote
       tool-activity.tsx               "Did N steps · 1 min 49 s" → rows → input and output
       markdown.tsx                    react-markdown + remark-gfm, shiki once the text stops streaming
       composer.tsx                    Enter/Shift+Enter, Send ↔ Stop, disabled reason
