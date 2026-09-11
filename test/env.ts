@@ -1,6 +1,5 @@
 // Test environment: every required variable set, an in-memory blob store.
 import { resetEnvCache } from "@/lib/env";
-import { resetFixtureSeed } from "@/lib/memory/fixture-store";
 import { setBlobStore } from "@/lib/store";
 import { memoryBlobStore } from "@/lib/store/memory";
 
@@ -20,5 +19,4 @@ export function testEnv(overrides: Record<string, string> = {}): void {
   });
   resetEnvCache();
   setBlobStore(memoryBlobStore());
-  resetFixtureSeed();
 }

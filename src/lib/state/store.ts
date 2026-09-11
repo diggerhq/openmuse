@@ -1,54 +1,88 @@
-// The app's own small index: which coordinator session is live, which topics
-// exist and which worker session each one has, and the return path's
-// delivery ledger. INTERIM: one JSON document ("state.json") in the blob
-// store (see store/blob.ts). It is a cache of platform facts plus the topic
-// index; when project memory lands the topic index moves to the topics
-// collection and this file keeps only the session map. There is no database.
+// The app's own small index: which coordinator session is live (and the
+// event subscription that delivers worker outcomes to it), and which worker
+// session each topic has. Everything else about a topic is its memory
+// document. One JSON document ("state.json") in the blob store
+// (store/blob.ts); there is no database. The session map is what the
+// platform cannot answer: sessions are found again by their idempotency
+// key only until they are replaced, and the session list has no filter.
 import { blobs } from "@/lib/store";
 
 export interface TopicRecord {
   readonly id: string;
-  readonly title: string;
-  readonly createdAt: string;
-  readonly archived: boolean;
   /** The topic's one ongoing worker session; replaced deliberately, never per task. */
   readonly workerSessionId?: string;
   readonly workerDeploymentId?: string;
   /** Previous worker sessions, oldest first, kept as history links. */
   readonly previousWorkerSessionIds: readonly string[];
-  /** invocationId -> turnId, so a retried start converges on one admitted turn. */
-  readonly invocations: Readonly<Record<string, string>>;
-  /** The revision each worker session last recalled, used as the expected revision of its saves. */
-  readonly recalledRevision: Readonly<Record<string, string>>;
 }
 
+export interface CoordinatorRecord {
+  readonly sessionId: string;
+  readonly deploymentId: string;
+  /** The event subscription that delivers worker outcomes to this session, once created. */
+  readonly subscriptionId?: string;
+}
+
+/** The fallback return path's ledger for one worker session (lib/return-path). */
 export interface ReturnPathRecord {
   /** Last event seq seen on the worker session. */
   readonly cursor: number;
-  /** workerTurnId -> coordinator turnId already queued for it. */
+  /** workerTurnId -> coordinator turnId already queued for it (or "skipped"). */
   readonly delivered: Readonly<Record<string, string>>;
 }
 
 export interface AppState {
-  readonly version: 1;
-  readonly coordinator?: { readonly sessionId: string; readonly deploymentId: string };
+  readonly version: 2;
+  readonly coordinator?: CoordinatorRecord;
   /** Earlier coordinator sessions, oldest first, kept as history links after a deliberate replacement. */
   readonly previousCoordinatorSessionIds?: readonly string[];
-  readonly coordinatorRecalledRevision?: string;
   readonly topics: Readonly<Record<string, TopicRecord>>;
-  readonly returnPath: Readonly<Record<string, ReturnPathRecord>>;
+  /** Present only while the fallback return path runs; keyed by worker session id. */
+  readonly returnPath?: Readonly<Record<string, ReturnPathRecord>>;
 }
 
-const EMPTY: AppState = { version: 1, topics: {}, returnPath: {} };
+const EMPTY: AppState = { version: 2, topics: {} };
 const KEY = "state.json";
 
 let queue: Promise<unknown> = Promise.resolve();
 
-// Always read from the store: the return-path driver and the route handlers
-// may be separate module instances, and the store is the only shared truth.
+// Only the fields above survive a load: an older state file (version 1
+// also carried recall revisions) is read for its session map and ledger and
+// rewritten in this shape on the next update.
+function normalize(raw: Partial<AppState>): AppState {
+  const topics: Record<string, TopicRecord> = {};
+  for (const [id, topic] of Object.entries(raw.topics ?? {})) {
+    topics[id] = {
+      id,
+      ...(topic.workerSessionId ? { workerSessionId: topic.workerSessionId } : {}),
+      ...(topic.workerDeploymentId ? { workerDeploymentId: topic.workerDeploymentId } : {}),
+      previousWorkerSessionIds: topic.previousWorkerSessionIds ?? [],
+    };
+  }
+  return {
+    version: 2,
+    ...(raw.coordinator
+      ? {
+          coordinator: {
+            sessionId: raw.coordinator.sessionId,
+            deploymentId: raw.coordinator.deploymentId,
+            ...(raw.coordinator.subscriptionId ? { subscriptionId: raw.coordinator.subscriptionId } : {}),
+          },
+        }
+      : {}),
+    ...(raw.previousCoordinatorSessionIds?.length
+      ? { previousCoordinatorSessionIds: raw.previousCoordinatorSessionIds }
+      : {}),
+    topics,
+    ...(raw.returnPath && Object.keys(raw.returnPath).length ? { returnPath: raw.returnPath } : {}),
+  };
+}
+
+// Always read from the store: route handlers may be separate module
+// instances, and the store is the only shared truth.
 async function load(): Promise<AppState> {
   const text = await blobs().get(KEY);
-  return text ? { ...EMPTY, ...(JSON.parse(text) as AppState) } : EMPTY;
+  return text ? normalize(JSON.parse(text) as Partial<AppState>) : EMPTY;
 }
 
 export function readState(): Promise<AppState> {

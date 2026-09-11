@@ -1,6 +1,6 @@
 // One entry of a conversation: the owner's message, the assistant's reply
-// with its tool activity, an outcome card from a topic, or a note that the
-// owner pressed Stop.
+// with its tool activity, a worker outcome the platform delivered from a
+// topic, or a note that the owner pressed Stop.
 
 import type { AgentMessage } from "@opencomputer/react";
 import { Link } from "@tanstack/react-router";
@@ -8,7 +8,9 @@ import { cn } from "cn";
 import { ArrowRightIcon, CircleAlertIcon, CircleCheckIcon, CircleSlashIcon } from "lucide-react";
 import { Markdown } from "@/components/app/conversation/markdown";
 import { ToolActivity } from "@/components/app/conversation/tool-activity";
+import { useOwner } from "@/components/app/owner-context";
 import { clock } from "@/lib/client/format";
+import { useTopics } from "@/lib/client/queries";
 import {
   type OutcomeCard as Outcome,
   parseOutcome,
@@ -96,27 +98,44 @@ const OUTCOME_LABEL = {
   cancelled: "was stopped",
 } as const;
 
+// The worker's report names its topic on its first line ("Topic: <title>");
+// the session id names it for certain once the topic list is loaded.
+function reportBody(body: string): { title?: string; body: string } {
+  const match = /^Topic:\s*(.+?)\s*\n+([\s\S]*)$/.exec(body);
+  return match ? { title: match[1], body: match[2] ?? "" } : { body };
+}
+
 export function OutcomeCard({ outcome }: { outcome: Outcome }) {
+  const { csrf } = useOwner();
+  const topics = useTopics(csrf);
+  const topic = topics.data?.find(
+    (candidate) =>
+      candidate.workerSessionId === outcome.sessionId || candidate.previousWorkerSessionIds.includes(outcome.sessionId),
+  );
+  const report = reportBody(outcome.body);
   const Icon = OUTCOME_ICON[outcome.status];
-  const body = outcome.body.length > 600 ? `${outcome.body.slice(0, 600)}…` : outcome.body;
+  const body = report.body.length > 600 ? `${report.body.slice(0, 600)}…` : report.body;
   return (
     <div className="rounded-lg border bg-panel p-3">
       <div className="flex items-center gap-2 text-xs">
         <Icon className={cn("size-4", OUTCOME_TONE[outcome.status])} aria-hidden />
-        <span className="font-medium">{outcome.title}</span>
+        <span className="font-medium">{topic?.title ?? report.title ?? "A topic"}</span>
         <span className="text-muted-foreground">{OUTCOME_LABEL[outcome.status]}</span>
-        {outcome.topicId ? (
+        {topic ? (
           <Link
             to="/topics/$id"
-            params={{ id: outcome.topicId }}
+            params={{ id: topic.id }}
             className="ml-auto inline-flex items-center gap-1 text-brand hover:underline"
           >
             Open topic <ArrowRightIcon className="size-3.5" aria-hidden />
           </Link>
         ) : null}
       </div>
-      {outcome.detail ? <p className="mt-1 text-xs text-status-failed">{outcome.detail}</p> : null}
+      {outcome.detail || outcome.reason ? (
+        <p className="mt-1 text-xs text-status-failed">{outcome.detail ?? outcome.reason}</p>
+      ) : null}
       {body ? <Markdown text={body} className="mt-2 text-muted-foreground" /> : null}
+      {outcome.truncated ? <p className="mt-1 text-xs text-muted-foreground">The report was cut to fit.</p> : null}
     </div>
   );
 }

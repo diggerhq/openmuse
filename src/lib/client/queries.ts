@@ -2,7 +2,7 @@
 // events come from @opencomputer/react; these cover everything else.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/client/api";
-import type { Document } from "@/lib/memory/adapter";
+import type { Document } from "@/lib/memory";
 import type { TopicDetail, TopicSummary } from "@/lib/topics/service";
 
 export const keys = {

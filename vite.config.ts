@@ -10,17 +10,24 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { returnPathDevTrigger } from "./src/lib/return-path/dev-trigger.ts";
 
 const target = process.env.OPENMUSE_TARGET === "cloudflare" ? "cloudflare" : "node";
 
-export default defineConfig({
-  resolve: { tsconfigPaths: true },
-  plugins: [
-    tailwindcss(),
-    ...(target === "cloudflare" ? [cloudflare({ viteEnvironment: { name: "ssr" } }), returnPathDevTrigger()] : []),
-    tanstackStart({ srcDirectory: "src", server: { entry: "server.ts" } }),
-    viteReact(),
-  ],
+export default defineConfig(({ mode }) => {
+  // The agents call back into the app through its public https origin; in
+  // development that is a tunnel to the dev server, which Vite only serves
+  // to hosts it is told about.
+  const origin = loadEnv(mode, process.cwd(), "").OPENMUSE_APP_ORIGIN;
+  return {
+    resolve: { tsconfigPaths: true },
+    server: origin ? { allowedHosts: [new URL(origin).hostname] } : {},
+    plugins: [
+      tailwindcss(),
+      ...(target === "cloudflare" ? [cloudflare({ viteEnvironment: { name: "ssr" } }), returnPathDevTrigger()] : []),
+      tanstackStart({ srcDirectory: "src", server: { entry: "server.ts" } }),
+      viteReact(),
+    ],
+  };
 });

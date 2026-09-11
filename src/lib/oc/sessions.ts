@@ -1,5 +1,7 @@
-// Session lifecycle over the management API: create-or-reuse by key, queue a
-// turn (resuming a suspended microVM first), interrupt.
+// Session lifecycle over the management API: create-or-reuse by key with
+// its memory bindings, queue a turn (resuming a suspended microVM first),
+// interrupt.
+import type { MemoryBindings } from "@opencomputer/sdk";
 import { env } from "@/lib/env";
 import { OcError, type OcSession, oc } from "@/lib/oc/client";
 
@@ -22,14 +24,22 @@ export async function activeDeploymentId(agent: string): Promise<string> {
   return id;
 }
 
-export async function createOrReuseSession(agent: string, key: string): Promise<{ id: string; created: boolean }> {
+// The bindings are part of the session's identity under its key: the same
+// key with different bindings is a 409, like a different deployment.
+export async function createOrReuseSession(
+  agent: string,
+  key: string,
+  memory: MemoryBindings,
+): Promise<{ id: string; created: boolean }> {
   const idempotencyKey = `openmuse/${env().installationId}/${key}`;
   try {
-    const result = await oc.createSession(agent, idempotencyKey);
+    const result = await oc.createSession(agent, idempotencyKey, memory);
     return { id: result.session.id, created: result.created };
   } catch (error) {
     if (error instanceof OcError && error.status === 409) {
-      throw new Error(`Session key ${key} was used with another deployment; include the deployment id in the key`);
+      throw new Error(
+        `Session key ${key} was already used with another deployment or other memory bindings (${error.code})`,
+      );
     }
     throw error;
   }

@@ -1,4 +1,5 @@
-// Called by the coordinator's start_topic tool through the managed connection.
+// Called by the coordinator's start_topic tool through the managed connection:
+// the one agent-facing app route. Notes are read through the topics binding.
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAgent } from "@/lib/auth/guard";
 import { utf8ByteLength } from "@/lib/crypto";

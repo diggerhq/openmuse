@@ -5,12 +5,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { ownerSession } from "@/lib/auth/guard";
 import { env } from "@/lib/env";
-import { memoryBackend } from "@/lib/memory";
 
 export interface OwnerContext {
   readonly csrf: string;
   readonly environment: "development" | "production";
-  readonly memoryBackend: "fixture" | "platform";
   /** Where a session can be inspected on the platform: `${sessionLinkBase}/${sessionId}`. */
   readonly sessionLinkBase: string;
 }
@@ -22,7 +20,6 @@ export const getOwnerContext = createServerFn({ method: "GET" }).handler(async (
   return {
     csrf: session.csrf,
     environment,
-    memoryBackend: memoryBackend(),
     sessionLinkBase: `${apiUrl}/projects/${encodeURIComponent(projectId)}/sessions`,
   };
 });

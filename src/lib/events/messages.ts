@@ -1,7 +1,7 @@
-// What the app reads out of a session's durable events beyond the messages
-// (which @opencomputer/react reduces): tool activity per turn for the
-// conversation view, the outcome of a worker turn for the return path, and
-// the shape of the app's own messages. Pure; shared by server and browser.
+// What the browser reads out of a session's durable events beyond the
+// messages (which @opencomputer/react reduces): tool activity per turn for
+// the conversation view, and the delivered worker outcomes and Stop notes
+// among the incoming messages. Pure.
 import type { OcEvent } from "@/lib/oc/client";
 
 export interface ToolCall {
@@ -34,7 +34,6 @@ export interface Activity {
   readonly cursor: number;
 }
 
-export const OUTCOME_PREFIX = "[topic outcome]";
 export const STOP_PREFIX = "[stop]";
 
 export function bounded(value: unknown, max = 2000): string {
@@ -167,55 +166,53 @@ export function applyActivity(activity: Activity, event: OcEvent): Activity {
   }
 }
 
-/** The final assistant text of one turn, for the return path. */
-export function turnResult(
-  events: readonly OcEvent[],
-  turnId: string,
-): { status: "completed" | "failed" | "cancelled" | "running"; text: string; detail?: string } {
-  let text = "";
-  let status: "completed" | "failed" | "cancelled" | "running" = "running";
-  let detail: string | undefined;
-  for (const event of events) {
-    if (event.turnId !== turnId) continue;
-    if (event.type === "message.completed" && typeof event.data.text === "string") text = event.data.text;
-    if (event.type === "turn.completed") status = "completed";
-    if (event.type === "turn.failed") {
-      status = "failed";
-      detail = bounded(event.data.message ?? event.data.reason ?? "", 400);
-    }
-    if (event.type === "turn.cancelled") {
-      status = "cancelled";
-      detail = bounded(event.data.reason ?? "", 200);
-    }
-  }
-  return { status, text, detail };
-}
-
 export interface OutcomeCard {
-  readonly topicId: string;
-  readonly title: string;
   readonly status: "completed" | "failed" | "cancelled";
+  readonly agentId: string;
+  readonly sessionId: string;
+  readonly turnId: string;
+  readonly occurredAt: string;
+  readonly reason?: string;
+  /** The failure message, when the turn failed. */
   readonly detail?: string;
+  /** The worker's final message, when the turn completed. */
   readonly body: string;
+  readonly truncated: boolean;
 }
 
-/** The app's own outcome message (see return-path), as the conversation shows it. */
+// A turn an event subscription started records the delivered outcome as
+// its input, in the platform's own text form: "Outcome event turn.<type>
+// from agent <id> (session <id>, turn <id>) at <time>[ (<reason>)]." then
+// "Result:" and the worker's message, or "Error:" and the failure. The
+// agent reads the same outcome typed through useInput(); the browser only
+// has this text, so it recognises it here and shows it as what it is.
+const OUTCOME =
+  /^Outcome event turn\.(completed|failed|cancelled) from agent (\S+) \(session ([A-Za-z0-9-]+), turn ([A-Za-z0-9-]+)\) at (\S+?)(?: \(([^)\n]*)\))?\.(?:\n([\s\S]*))?$/;
+
 export function parseOutcome(text: string): OutcomeCard | null {
-  if (!text.startsWith(OUTCOME_PREFIX)) return null;
-  const rest = text.slice(OUTCOME_PREFIX.length).trimStart();
-  const end = rest.indexOf("\n");
-  const header = end === -1 ? rest : rest.slice(0, end);
-  try {
-    const parsed = JSON.parse(header) as { topicId?: string; title?: string; status?: string; detail?: string };
-    const status = parsed.status === "failed" || parsed.status === "cancelled" ? parsed.status : "completed";
-    return {
-      topicId: parsed.topicId ?? "",
-      title: parsed.title ?? parsed.topicId ?? "Topic",
-      status,
-      ...(parsed.detail ? { detail: parsed.detail } : {}),
-      body: end === -1 ? "" : rest.slice(end + 1).trim(),
-    };
-  } catch {
-    return { topicId: "", title: "Topic", status: "completed", body: rest };
-  }
+  const match = OUTCOME.exec(text);
+  if (!match) return null;
+  const [, status, agentId, sessionId, turnId, occurredAt, reason, rest = ""] = match as unknown as [
+    string,
+    OutcomeCard["status"],
+    string,
+    string,
+    string,
+    string,
+    string | undefined,
+    string | undefined,
+  ];
+  const result = /^Result( \(truncated\))?:\n?([\s\S]*)$/.exec(rest);
+  const error = /^Error: ([\s\S]*)$/.exec(rest);
+  return {
+    status,
+    agentId,
+    sessionId,
+    turnId,
+    occurredAt,
+    ...(reason ? { reason } : {}),
+    ...(error ? { detail: error[1] } : {}),
+    body: result ? (result[2] ?? "").trim() : "",
+    truncated: Boolean(result?.[1]),
+  };
 }

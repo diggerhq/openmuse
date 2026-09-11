@@ -24,7 +24,7 @@ import { ApiError, api } from "@/lib/client/api";
 import { bytes as formatBytes, relativeTime } from "@/lib/client/format";
 import { initialNotes, isDirty, type NotesBase, notesReducer } from "@/lib/client/notes-machine";
 import { useInvalidate, useTopicAction } from "@/lib/client/queries";
-import type { Document } from "@/lib/memory/adapter";
+import type { Document } from "@/lib/memory";
 import type { TopicDetail } from "@/lib/topics/service";
 
 function base(document: Document): NotesBase {
@@ -81,7 +81,7 @@ export function NotesEditor({ detail, now }: { detail: TopicDetail; now: number 
           type: "failed",
           error:
             reason === "too_large"
-              ? `Too long: the limit is ${formatBytes(Number(error.body.maxBytes ?? 0))}.`
+              ? `Too long: the ${error.body.field === "summary" ? "summary" : "notes"} limit is ${formatBytes(Number(error.body.maxBytes ?? 0))}.`
               : `Not saved (${reason || "refused"}).`,
         });
       } else {

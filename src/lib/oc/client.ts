@@ -1,5 +1,13 @@
-// OpenComputer management API, held server-side with the API key. Only the
-// routes the public api-edge exposes today are used.
+// OpenComputer management API, held server-side with the API key
+// (docs/agents/api.mdx). Sessions, turns, the event log, event subscriptions
+// and the project secret; the memory routes are in lib/memory.
+import type {
+  CreateEventSubscriptionBody,
+  EventSubscription,
+  MemoryBindings,
+  SessionMemoryBinding,
+  TurnOutcomeDelivery,
+} from "@opencomputer/sdk";
 import { env } from "@/lib/env";
 
 export interface OcEvent {
@@ -18,6 +26,8 @@ export interface OcTurn {
   readonly status: string;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /** Outcome deliveries an event subscription made for this turn, when any. */
+  readonly deliveries?: readonly TurnOutcomeDelivery[];
 }
 
 export interface OcSession {
@@ -27,6 +37,9 @@ export interface OcSession {
   readonly executionMode?: "microvm" | "workerd";
   readonly status: string;
   readonly microvmState?: string;
+  readonly environment?: "development" | "production";
+  /** The memory bindings the session was created with; `writable` is current. */
+  readonly memory?: readonly SessionMemoryBinding[];
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly turns: readonly OcTurn[];
@@ -88,14 +101,25 @@ async function requestWithStatus<T>(
   return { status: response.status, body: body as T };
 }
 
+const project = () => `/projects/${encodeURIComponent(env().projectId)}`;
+
 export const oc = {
-  async createSession(agent: string, idempotencyKey: string) {
+  // A session bound to memory documents at creation; the bindings are fixed
+  // for its life. `Idempotency-Key` makes the create safe to retry: the same
+  // key with the same agent, deployment, environment and bindings returns
+  // the existing session (200), anything else under it is a 409.
+  async createSession(agent: string, idempotencyKey: string, memory: MemoryBindings) {
     const result = await requestWithStatus<{
       session: { id: string; executionMode?: "microvm" | "workerd"; status: string };
       deployment?: { id: string };
     }>("/sessions", {
       method: "POST",
-      body: JSON.stringify({ agentId: `${agent}@${env().environment}`, source: "api" }),
+      body: JSON.stringify({
+        agentId: `${agent}@${env().environment}`,
+        environment: env().environment,
+        source: "api",
+        memory,
+      }),
       idempotencyKey,
     });
     return { ...result.body, created: result.status === 201 };
@@ -132,15 +156,43 @@ export const oc = {
   project() {
     return request<{
       project: { id: string; environments: Array<{ name: string; agentId: string; activeDeploymentId?: string }> };
-    }>(`/projects/${encodeURIComponent(env().projectId)}`);
+    }>(project());
   },
   // A project secret the managed connections attach; the same route the CLI's
   // `secrets set --allow-origin` uses. Replaces the value and the origins.
   putSecret(name: string, value: string, allowedOrigins: readonly string[]) {
-    return request<unknown>(`/projects/${encodeURIComponent(env().projectId)}/secrets/${encodeURIComponent(name)}`, {
+    return request<unknown>(`${project()}/secrets/${encodeURIComponent(name)}`, {
       method: "PUT",
       body: JSON.stringify({ value, environment: env().environment, allowedOrigins }),
     });
+  },
+  // Event subscriptions: the recorded outcome of a worker turn delivered to
+  // the coordinator session as a turn with `source: "event"` input.
+  async createEventSubscription(body: CreateEventSubscriptionBody) {
+    return (
+      await request<{ subscription: EventSubscription }>(`${project()}/event-subscriptions`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      })
+    ).subscription;
+  },
+  async eventSubscription(id: string): Promise<EventSubscription | null> {
+    try {
+      return (
+        await request<{ subscription: EventSubscription }>(`${project()}/event-subscriptions/${encodeURIComponent(id)}`)
+      ).subscription;
+    } catch (error) {
+      if (error instanceof OcError && error.status === 404) return null;
+      throw error;
+    }
+  },
+  async deleteEventSubscription(id: string): Promise<void> {
+    try {
+      await request<unknown>(`${project()}/event-subscriptions/${encodeURIComponent(id)}`, { method: "DELETE" });
+    } catch (error) {
+      if (error instanceof OcError && error.status === 404) return;
+      throw error;
+    }
   },
 };
 

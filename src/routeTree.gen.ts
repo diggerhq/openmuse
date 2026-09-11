@@ -15,8 +15,6 @@ import { Route as AppIndexRouteImport } from './routes/_app.index'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiProfileRouteImport } from './routes/api/profile'
 import { Route as AppTopicsIdRouteImport } from './routes/_app.topics.$id'
-import { Route as ApiAgentNotesRouteImport } from './routes/api/agent/notes'
-import { Route as ApiAgentProfileRouteImport } from './routes/api/agent/profile'
 import { Route as ApiAgentStartTopicRouteImport } from './routes/api/agent/start-topic'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
@@ -24,8 +22,6 @@ import { Route as ApiAuthMeRouteImport } from './routes/api/auth/me'
 import { Route as ApiConversationIndexRouteImport } from './routes/api/conversation/index'
 import { Route as ApiConversationReplaceRouteImport } from './routes/api/conversation/replace'
 import { Route as ApiTopicsIndexRouteImport } from './routes/api/topics/index'
-import { Route as ApiAgentTopicsIdRouteImport } from './routes/api/agent/topics/$id'
-import { Route as ApiInternalReturnPathTickRouteImport } from './routes/api/internal/return-path/tick'
 import { Route as ApiSessionsIdActionRouteImport } from './routes/api/sessions/$id/$action'
 import { Route as ApiTopicsIdIndexRouteImport } from './routes/api/topics/$id/index'
 import { Route as ApiTopicsIdArchiveRouteImport } from './routes/api/topics/$id/archive'
@@ -63,16 +59,6 @@ const AppTopicsIdRoute = AppTopicsIdRouteImport.update({
   path: '/topics/$id',
   getParentRoute: () => AppRoute,
 } as any)
-const ApiAgentNotesRoute = ApiAgentNotesRouteImport.update({
-  id: '/api/agent/notes',
-  path: '/api/agent/notes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAgentProfileRoute = ApiAgentProfileRouteImport.update({
-  id: '/api/agent/profile',
-  path: '/api/agent/profile',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAgentStartTopicRoute = ApiAgentStartTopicRouteImport.update({
   id: '/api/agent/start-topic',
   path: '/api/agent/start-topic',
@@ -108,17 +94,6 @@ const ApiTopicsIndexRoute = ApiTopicsIndexRouteImport.update({
   path: '/api/topics/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAgentTopicsIdRoute = ApiAgentTopicsIdRouteImport.update({
-  id: '/api/agent/topics/$id',
-  path: '/api/agent/topics/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiInternalReturnPathTickRoute =
-  ApiInternalReturnPathTickRouteImport.update({
-    id: '/api/internal/return-path/tick',
-    path: '/api/internal/return-path/tick',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiSessionsIdActionRoute = ApiSessionsIdActionRouteImport.update({
   id: '/api/sessions/$id/$action',
   path: '/api/sessions/$id/$action',
@@ -162,8 +137,6 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/profile': typeof ApiProfileRoute
   '/topics/$id': typeof AppTopicsIdRoute
-  '/api/agent/notes': typeof ApiAgentNotesRoute
-  '/api/agent/profile': typeof ApiAgentProfileRoute
   '/api/agent/start-topic': typeof ApiAgentStartTopicRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -171,8 +144,6 @@ export interface FileRoutesByFullPath {
   '/api/conversation/replace': typeof ApiConversationReplaceRoute
   '/api/conversation/': typeof ApiConversationIndexRoute
   '/api/topics/': typeof ApiTopicsIndexRoute
-  '/api/agent/topics/$id': typeof ApiAgentTopicsIdRoute
-  '/api/internal/return-path/tick': typeof ApiInternalReturnPathTickRoute
   '/api/sessions/$id/$action': typeof ApiSessionsIdActionRoute
   '/api/topics/$id/archive': typeof ApiTopicsIdArchiveRoute
   '/api/topics/$id/notes': typeof ApiTopicsIdNotesRoute
@@ -187,8 +158,6 @@ export interface FileRoutesByTo {
   '/api/profile': typeof ApiProfileRoute
   '/': typeof AppIndexRoute
   '/topics/$id': typeof AppTopicsIdRoute
-  '/api/agent/notes': typeof ApiAgentNotesRoute
-  '/api/agent/profile': typeof ApiAgentProfileRoute
   '/api/agent/start-topic': typeof ApiAgentStartTopicRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -196,8 +165,6 @@ export interface FileRoutesByTo {
   '/api/conversation/replace': typeof ApiConversationReplaceRoute
   '/api/conversation': typeof ApiConversationIndexRoute
   '/api/topics': typeof ApiTopicsIndexRoute
-  '/api/agent/topics/$id': typeof ApiAgentTopicsIdRoute
-  '/api/internal/return-path/tick': typeof ApiInternalReturnPathTickRoute
   '/api/sessions/$id/$action': typeof ApiSessionsIdActionRoute
   '/api/topics/$id/archive': typeof ApiTopicsIdArchiveRoute
   '/api/topics/$id/notes': typeof ApiTopicsIdNotesRoute
@@ -214,8 +181,6 @@ export interface FileRoutesById {
   '/api/profile': typeof ApiProfileRoute
   '/_app/': typeof AppIndexRoute
   '/_app/topics/$id': typeof AppTopicsIdRoute
-  '/api/agent/notes': typeof ApiAgentNotesRoute
-  '/api/agent/profile': typeof ApiAgentProfileRoute
   '/api/agent/start-topic': typeof ApiAgentStartTopicRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
@@ -223,8 +188,6 @@ export interface FileRoutesById {
   '/api/conversation/replace': typeof ApiConversationReplaceRoute
   '/api/conversation/': typeof ApiConversationIndexRoute
   '/api/topics/': typeof ApiTopicsIndexRoute
-  '/api/agent/topics/$id': typeof ApiAgentTopicsIdRoute
-  '/api/internal/return-path/tick': typeof ApiInternalReturnPathTickRoute
   '/api/sessions/$id/$action': typeof ApiSessionsIdActionRoute
   '/api/topics/$id/archive': typeof ApiTopicsIdArchiveRoute
   '/api/topics/$id/notes': typeof ApiTopicsIdNotesRoute
@@ -241,8 +204,6 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/profile'
     | '/topics/$id'
-    | '/api/agent/notes'
-    | '/api/agent/profile'
     | '/api/agent/start-topic'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -250,8 +211,6 @@ export interface FileRouteTypes {
     | '/api/conversation/replace'
     | '/api/conversation/'
     | '/api/topics/'
-    | '/api/agent/topics/$id'
-    | '/api/internal/return-path/tick'
     | '/api/sessions/$id/$action'
     | '/api/topics/$id/archive'
     | '/api/topics/$id/notes'
@@ -266,8 +225,6 @@ export interface FileRouteTypes {
     | '/api/profile'
     | '/'
     | '/topics/$id'
-    | '/api/agent/notes'
-    | '/api/agent/profile'
     | '/api/agent/start-topic'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -275,8 +232,6 @@ export interface FileRouteTypes {
     | '/api/conversation/replace'
     | '/api/conversation'
     | '/api/topics'
-    | '/api/agent/topics/$id'
-    | '/api/internal/return-path/tick'
     | '/api/sessions/$id/$action'
     | '/api/topics/$id/archive'
     | '/api/topics/$id/notes'
@@ -292,8 +247,6 @@ export interface FileRouteTypes {
     | '/api/profile'
     | '/_app/'
     | '/_app/topics/$id'
-    | '/api/agent/notes'
-    | '/api/agent/profile'
     | '/api/agent/start-topic'
     | '/api/auth/login'
     | '/api/auth/logout'
@@ -301,8 +254,6 @@ export interface FileRouteTypes {
     | '/api/conversation/replace'
     | '/api/conversation/'
     | '/api/topics/'
-    | '/api/agent/topics/$id'
-    | '/api/internal/return-path/tick'
     | '/api/sessions/$id/$action'
     | '/api/topics/$id/archive'
     | '/api/topics/$id/notes'
@@ -317,8 +268,6 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiProfileRoute: typeof ApiProfileRoute
-  ApiAgentNotesRoute: typeof ApiAgentNotesRoute
-  ApiAgentProfileRoute: typeof ApiAgentProfileRoute
   ApiAgentStartTopicRoute: typeof ApiAgentStartTopicRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
@@ -326,8 +275,6 @@ export interface RootRouteChildren {
   ApiConversationReplaceRoute: typeof ApiConversationReplaceRoute
   ApiConversationIndexRoute: typeof ApiConversationIndexRoute
   ApiTopicsIndexRoute: typeof ApiTopicsIndexRoute
-  ApiAgentTopicsIdRoute: typeof ApiAgentTopicsIdRoute
-  ApiInternalReturnPathTickRoute: typeof ApiInternalReturnPathTickRoute
   ApiSessionsIdActionRoute: typeof ApiSessionsIdActionRoute
   ApiTopicsIdArchiveRoute: typeof ApiTopicsIdArchiveRoute
   ApiTopicsIdNotesRoute: typeof ApiTopicsIdNotesRoute
@@ -381,20 +328,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTopicsIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/api/agent/notes': {
-      id: '/api/agent/notes'
-      path: '/api/agent/notes'
-      fullPath: '/api/agent/notes'
-      preLoaderRoute: typeof ApiAgentNotesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/agent/profile': {
-      id: '/api/agent/profile'
-      path: '/api/agent/profile'
-      fullPath: '/api/agent/profile'
-      preLoaderRoute: typeof ApiAgentProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/agent/start-topic': {
       id: '/api/agent/start-topic'
       path: '/api/agent/start-topic'
@@ -442,20 +375,6 @@ declare module '@tanstack/react-router' {
       path: '/api/topics'
       fullPath: '/api/topics/'
       preLoaderRoute: typeof ApiTopicsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/agent/topics/$id': {
-      id: '/api/agent/topics/$id'
-      path: '/api/agent/topics/$id'
-      fullPath: '/api/agent/topics/$id'
-      preLoaderRoute: typeof ApiAgentTopicsIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/internal/return-path/tick': {
-      id: '/api/internal/return-path/tick'
-      path: '/api/internal/return-path/tick'
-      fullPath: '/api/internal/return-path/tick'
-      preLoaderRoute: typeof ApiInternalReturnPathTickRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/sessions/$id/$action': {
@@ -527,8 +446,6 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiProfileRoute: ApiProfileRoute,
-  ApiAgentNotesRoute: ApiAgentNotesRoute,
-  ApiAgentProfileRoute: ApiAgentProfileRoute,
   ApiAgentStartTopicRoute: ApiAgentStartTopicRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
@@ -536,8 +453,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiConversationReplaceRoute: ApiConversationReplaceRoute,
   ApiConversationIndexRoute: ApiConversationIndexRoute,
   ApiTopicsIndexRoute: ApiTopicsIndexRoute,
-  ApiAgentTopicsIdRoute: ApiAgentTopicsIdRoute,
-  ApiInternalReturnPathTickRoute: ApiInternalReturnPathTickRoute,
   ApiSessionsIdActionRoute: ApiSessionsIdActionRoute,
   ApiTopicsIdArchiveRoute: ApiTopicsIdArchiveRoute,
   ApiTopicsIdNotesRoute: ApiTopicsIdNotesRoute,

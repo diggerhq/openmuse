@@ -3,16 +3,12 @@
 //   GET  /api/sessions/<id>/events?after=<seq>  the durable log from a cursor
 //   POST /api/sessions/<id>/turns               { input, idempotencyKey } -> { turnId }
 //   POST /api/sessions/<id>/interrupt           stop the running turn
-// Turns are not forwarded raw: the app composes the recall projection into
-// the input and records what each session saw (memory/recall.ts), and the
-// events route strips that projection back out of message.received so the
-// browser only ever sees what the owner wrote. Both go away when memory
-// bindings land.
+// Turns go through the services so a topic without a usable worker gets one
+// (bound to its notes) before the turn is admitted.
 import { createFileRoute } from "@tanstack/react-router";
 import { requireOwner } from "@/lib/auth/guard";
 import { sendOwnerMessage, stopCoordinator } from "@/lib/conversation/service";
 import { bad, failure, readJson } from "@/lib/http/json";
-import { stripRecall } from "@/lib/memory/envelope";
 import { oc } from "@/lib/oc/client";
 import { interruptSession } from "@/lib/oc/sessions";
 import { continueTopic, STOP_WORKER, sessionRole } from "@/lib/topics/service";
@@ -30,13 +26,7 @@ export const Route = createFileRoute("/api/sessions/$id/$action")({
         const after = Number(new URL(request.url).searchParams.get("after") ?? "0");
         try {
           const events = await oc.events(params.id, Number.isFinite(after) && after > 0 ? after : 0, request.signal);
-          return Response.json({
-            events: events.map((event) =>
-              event.type === "message.received" && typeof event.data.input === "string"
-                ? { ...event, data: { ...event.data, input: stripRecall(event.data.input) } }
-                : event,
-            ),
-          });
+          return Response.json({ events });
         } catch (error) {
           return failure(error);
         }

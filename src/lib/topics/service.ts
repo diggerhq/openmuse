@@ -1,11 +1,13 @@
 // Topics: a topic is a memory document (topics/<id>) plus one ongoing worker
-// session. Topic creation, session creation and first-turn admission are
-// separate idempotent operations with different keys, so a retry converges
-// without duplicate work.
+// session bound to it. Topic creation, session creation and first-turn
+// admission are separate idempotent operations with different keys, so a
+// retry converges without duplicate work; the document's write policy is
+// the archive state.
+import type { MemoryBindings } from "@opencomputer/sdk";
+import { PROFILE_DOCUMENT } from "@/lib/conversation/service";
 import { sha256Hex } from "@/lib/crypto";
 import { env } from "@/lib/env";
 import { type Document, memory, type SaveResult } from "@/lib/memory";
-import { composeTurnInput, recallForWorker } from "@/lib/memory/recall";
 import { type OcSession, oc } from "@/lib/oc/client";
 import {
   activeDeploymentId,
@@ -32,8 +34,16 @@ export type StartTopicResult =
       readonly status: "refused";
       readonly reason: "archived" | "not_found";
       readonly topicId: string;
-      readonly topics?: string[];
     };
+
+// A worker reads the owner profile and reads and saves its own topic's
+// notes; it cannot reach another topic.
+function workerMemory(topicId: string): MemoryBindings {
+  return {
+    profile: { scope: "document", id: PROFILE_DOCUMENT, access: "read" },
+    topics: { scope: "document", id: topicId, access: "read-write" },
+  };
+}
 
 function slug(title: string): string {
   return (
@@ -49,19 +59,11 @@ async function topicIdFor(title: string, invocationId: string): Promise<string> 
   return `${slug(title)}-${(await sha256Hex(invocationId)).slice(0, 6)}`;
 }
 
-async function ensureTopicRecord(topicId: string, title: string): Promise<TopicRecord> {
+async function ensureTopicRecord(topicId: string): Promise<TopicRecord> {
   return updateState((state) => {
     const existing = state.topics[topicId];
     if (existing) return { state, result: existing };
-    const record: TopicRecord = {
-      id: topicId,
-      title,
-      createdAt: new Date().toISOString(),
-      archived: false,
-      previousWorkerSessionIds: [],
-      invocations: {},
-      recalledRevision: {},
-    };
+    const record: TopicRecord = { id: topicId, previousWorkerSessionIds: [] };
     return { state: { ...state, topics: { ...state.topics, [topicId]: record } }, result: record };
   });
 }
@@ -73,7 +75,7 @@ async function ensureWorkerSession(topic: TopicRecord): Promise<string> {
   const deploymentId = await activeDeploymentId(env().workerAgent);
   const predecessor = topic.workerSessionId ?? topic.previousWorkerSessionIds.at(-1);
   const key = `topic/${topic.id}/${deploymentId}${predecessor ? `/after/${predecessor}` : ""}`;
-  const created = await createOrReuseSession(env().workerAgent, key);
+  const created = await createOrReuseSession(env().workerAgent, key, workerMemory(topic.id));
   await updateState((state) => {
     const current = state.topics[topic.id];
     if (!current || current.workerSessionId === created.id) return { state, result: undefined };
@@ -99,81 +101,48 @@ async function ensureWorkerSession(topic: TopicRecord): Promise<string> {
   return created.id;
 }
 
-async function queueWorkerTurn(topicId: string, sessionId: string, text: string, idempotencyKey: string) {
-  const recall = await recallForWorker(topicId);
-  // The revision this session is about to see is the expected revision of its next save.
-  if (recall.topic) {
-    const revision = recall.topic.revision;
-    await updateState((state) => {
-      const current = state.topics[topicId];
-      if (!current) return { state, result: undefined };
-      return {
-        state: {
-          ...state,
-          topics: {
-            ...state.topics,
-            [topicId]: { ...current, recalledRevision: { ...current.recalledRevision, [sessionId]: revision } },
-          },
-        },
-        result: undefined,
-      };
-    });
-  }
-  return queueTurn(sessionId, composeTurnInput(recall, text), idempotencyKey);
-}
-
 export async function startTopic(input: {
   topicId?: string;
   title?: string;
   task: string;
   invocationId: string;
 }): Promise<StartTopicResult> {
-  const state = await readState();
   let topicId = input.topicId;
-  let title = input.title ?? "";
   let newTopic = false;
-  if (!topicId) {
-    topicId = await topicIdFor(title, input.invocationId);
-    const created = await memory().create("topics", topicId, { title, text: "", summary: "" });
-    newTopic = created.status === "created";
+  let document: Document | null;
+  if (topicId) {
+    document = await memory.get("topics", topicId);
+  } else {
+    topicId = await topicIdFor(input.title ?? "", input.invocationId);
+    const created = await memory.create("topics", topicId, { title: input.title ?? "" });
     if (created.status === "deleted") return { status: "refused", reason: "not_found", topicId };
+    newTopic = created.status === "created";
+    document = created.document;
   }
-  const document = await memory().get("topics", topicId);
-  if (!document) {
-    return { status: "refused", reason: "not_found", topicId, topics: Object.keys(state.topics) };
-  }
-  title = document.title;
-  const record = await ensureTopicRecord(topicId, title);
+  if (!document) return { status: "refused", reason: "not_found", topicId };
   // The document policy is the authority on archive state, not a summary.
-  if (document.agentWrites === "disabled" || record.archived) return { status: "refused", reason: "archived", topicId };
-  const sessionId = await ensureWorkerSession(record);
-  const turnKey = `invocation/${input.invocationId}`;
-  const turn = await queueWorkerTurn(topicId, sessionId, input.task, turnKey);
-  await updateState((current) => {
-    const topic = current.topics[topicId];
-    if (!topic) return { state: current, result: undefined };
-    return {
-      state: {
-        ...current,
-        topics: {
-          ...current.topics,
-          [topicId]: { ...topic, invocations: { ...topic.invocations, [input.invocationId]: turn.turnId } },
-        },
-      },
-      result: undefined,
-    };
-  });
-  return { status: "started", topicId, title, sessionId, turnId: turn.turnId, duplicate: turn.duplicate, newTopic };
+  if (document.agentWrites === "disabled") return { status: "refused", reason: "archived", topicId };
+  const sessionId = await ensureWorkerSession(await ensureTopicRecord(topicId));
+  // The turn key is the invocation: the platform returns the same turn for a retry.
+  const turn = await queueTurn(sessionId, input.task, `invocation/${input.invocationId}`);
+  return {
+    status: "started",
+    topicId,
+    title: document.title,
+    sessionId,
+    turnId: turn.turnId,
+    duplicate: turn.duplicate,
+    newTopic,
+  };
 }
 
 // Owner follow-up from the topic's conversation: another turn on the same session.
 export async function continueTopic(topicId: string, text: string, idempotencyKey: string = crypto.randomUUID()) {
-  const document = await memory().get("topics", topicId);
+  const document = await memory.get("topics", topicId);
   if (!document) throw new Error("not_found");
-  const record = await ensureTopicRecord(topicId, document.title);
-  if (record.archived || document.agentWrites === "disabled") throw new Error("archived");
-  const sessionId = await ensureWorkerSession(record);
-  return { sessionId, ...(await queueWorkerTurn(topicId, sessionId, text, idempotencyKey)) };
+  if (document.agentWrites === "disabled") throw new Error("archived");
+  const sessionId = await ensureWorkerSession(await ensureTopicRecord(topicId));
+  return { sessionId, ...(await queueTurn(sessionId, text, idempotencyKey)) };
 }
 
 export const STOP_WORKER =
@@ -209,9 +178,11 @@ export interface TopicSummary {
   readonly title: string;
   readonly summary: string;
   readonly updatedAt: string;
+  /** Agent writes disabled on the document: no worker can save, no task is admitted. */
   readonly archived: boolean;
-  readonly agentWrites: "enabled" | "disabled";
   readonly workerSessionId?: string;
+  /** Earlier worker sessions, so an outcome from one still links to its topic. */
+  readonly previousWorkerSessionIds: readonly string[];
   readonly work?: {
     readonly status: string;
     readonly turns: number;
@@ -222,22 +193,30 @@ export interface TopicSummary {
   };
 }
 
+function summarize(
+  document: Pick<Document, "id" | "title" | "summary" | "updatedAt" | "agentWrites">,
+  record: TopicRecord | undefined,
+  session: OcSession | null,
+): TopicSummary {
+  return {
+    id: document.id,
+    title: document.title,
+    summary: document.summary,
+    updatedAt: document.updatedAt,
+    archived: document.agentWrites === "disabled",
+    ...(record?.workerSessionId ? { workerSessionId: record.workerSessionId } : {}),
+    previousWorkerSessionIds: record?.previousWorkerSessionIds ?? [],
+    ...(session ? { work: workStatus(session) } : {}),
+  };
+}
+
 export async function listTopics(): Promise<TopicSummary[]> {
-  const [documents, state] = await Promise.all([memory().list("topics"), readState()]);
+  const [documents, state] = await Promise.all([memory.list("topics"), readState()]);
   return Promise.all(
     documents.map(async (document) => {
       const record = state.topics[document.id];
       const session = record?.workerSessionId ? await readSession(record.workerSessionId) : null;
-      return {
-        id: document.id,
-        title: document.title,
-        summary: document.summary,
-        updatedAt: document.updatedAt,
-        archived: record?.archived ?? false,
-        agentWrites: document.agentWrites,
-        workerSessionId: record?.workerSessionId,
-        ...(session ? { work: workStatus(session) } : {}),
-      };
+      return summarize(document, record, session);
     }),
   );
 }
@@ -262,80 +241,16 @@ export interface TopicDetail {
 }
 
 export async function topicDetail(topicId: string): Promise<TopicDetail | null> {
-  const document = await memory().get("topics", topicId);
+  const document = await memory.get("topics", topicId);
   if (!document) return null;
   const record = (await readState()).topics[topicId];
   const session = record?.workerSessionId ? await readSession(record.workerSessionId) : null;
   return {
-    topic: {
-      id: document.id,
-      title: document.title,
-      summary: document.summary,
-      updatedAt: document.updatedAt,
-      archived: record?.archived ?? false,
-      agentWrites: document.agentWrites,
-      workerSessionId: record?.workerSessionId,
-      ...(session ? { work: workStatus(session) } : {}),
-    },
+    topic: summarize(document, record, session),
     document,
     session,
     previousWorkerSessionIds: record?.previousWorkerSessionIds ?? [],
   };
-}
-
-// Agent save: the expected revision is the one the app recalled into that
-// session before its current turn; the model never supplies one.
-export async function agentSaveNotes(
-  sessionId: string,
-  body: { text: string; summary?: string },
-): Promise<SaveResult | { status: "rejected"; reason: "not_bound" }> {
-  const state = await readState();
-  const topic = Object.values(state.topics).find((candidate) => candidate.workerSessionId === sessionId);
-  if (!topic) return { status: "rejected", reason: "not_bound" };
-  const expected = topic.recalledRevision[sessionId];
-  if (!expected) return { status: "rejected", reason: "not_bound" };
-  const result = await memory().replace("topics", topic.id, body, expected, { kind: "agent", sessionId });
-  const revision =
-    result.status === "saved" ? result.revision : result.status === "conflict" ? result.revision : undefined;
-  if (revision) {
-    // The session has now observed this revision (its own save, or the current text from a conflict).
-    await updateState((current) => {
-      const record = current.topics[topic.id];
-      if (!record) return { state: current, result: undefined };
-      return {
-        state: {
-          ...current,
-          topics: {
-            ...current.topics,
-            [topic.id]: { ...record, recalledRevision: { ...record.recalledRevision, [sessionId]: revision } },
-          },
-        },
-        result: undefined,
-      };
-    });
-  }
-  return result;
-}
-
-export async function agentSaveProfile(
-  sessionId: string,
-  text: string,
-): Promise<SaveResult | { status: "rejected"; reason: "not_bound" }> {
-  const state = await readState();
-  if (state.coordinator?.sessionId !== sessionId || !state.coordinatorRecalledRevision)
-    return { status: "rejected", reason: "not_bound" };
-  const result = await memory().replace("profile", "owner", { text }, state.coordinatorRecalledRevision, {
-    kind: "agent",
-    sessionId,
-  });
-  const revision =
-    result.status === "saved" ? result.revision : result.status === "conflict" ? result.revision : undefined;
-  if (revision)
-    await updateState((current) => ({
-      state: { ...current, coordinatorRecalledRevision: revision },
-      result: undefined,
-    }));
-  return result;
 }
 
 export async function ownerEditNotes(
@@ -343,54 +258,25 @@ export async function ownerEditNotes(
   body: { text: string; summary?: string },
   expectedRevision: string,
 ): Promise<SaveResult> {
-  return memory().replace("topics", topicId, body, expectedRevision, { kind: "owner" });
+  return memory.replace("topics", topicId, body, expectedRevision);
 }
 
 export async function renameTopic(topicId: string, title: string, expectedRevision: string): Promise<SaveResult> {
-  const result = await memory().patch("topics", topicId, { title }, expectedRevision);
-  if (result.status !== "saved") return result;
-  await updateState((state) => {
-    const current = state.topics[topicId];
-    if (!current) return { state, result: undefined };
-    return { state: { ...state, topics: { ...state.topics, [topicId]: { ...current, title } } }, result: undefined };
-  });
-  return result;
+  return memory.patch("topics", topicId, { title }, expectedRevision);
 }
 
 // Archive: disable agent writes first, then end the worker so its access is
 // revoked while the notes are already protected. Unarchive re-enables writes;
 // the next task gets a fresh worker session bound to the same notes.
 export async function setArchived(topicId: string, archived: boolean, expectedRevision: string): Promise<SaveResult> {
-  const result = await memory().patch(
+  const result = await memory.patch(
     "topics",
     topicId,
     { agentWrites: archived ? "disabled" : "enabled" },
     expectedRevision,
   );
   if (result.status !== "saved") return result;
-  const record = (await readState()).topics[topicId];
-  if (archived && record?.workerSessionId) {
-    try {
-      await oc.end(record.workerSessionId);
-    } catch {
-      /* already ended */
-    }
-  }
-  await updateState((state) => {
-    const current = state.topics[topicId];
-    if (!current) return { state, result: undefined };
-    const next: TopicRecord = archived
-      ? { ...current, archived: true }
-      : {
-          ...current,
-          archived: false,
-          workerSessionId: undefined,
-          previousWorkerSessionIds: current.workerSessionId
-            ? [...current.previousWorkerSessionIds, current.workerSessionId]
-            : current.previousWorkerSessionIds,
-        };
-    return { state: { ...state, topics: { ...state.topics, [topicId]: next } }, result: undefined };
-  });
+  if (archived) await retireWorker(topicId);
   return result;
 }
 
@@ -398,6 +284,10 @@ export async function setArchived(topicId: string, archived: boolean, expectedRe
 // the next task create a successor keyed on the predecessor id, bound to the
 // same notes. History links to the old session are kept.
 export async function replaceWorker(topicId: string): Promise<{ endedSessionId?: string }> {
+  return retireWorker(topicId);
+}
+
+async function retireWorker(topicId: string): Promise<{ endedSessionId?: string }> {
   const record = (await readState()).topics[topicId];
   if (!record?.workerSessionId) return {};
   const ended = record.workerSessionId;
