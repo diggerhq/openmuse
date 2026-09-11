@@ -5,7 +5,7 @@ test("the sidebar and the panel become sheets on a phone", async ({ page, owner 
   void owner;
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Main conversation" })).toBeVisible();
-  await expect(page.getByText("OpenMuse").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeEnabled({ timeout: 30_000 });
   await screenshot(page, "m01-mobile-main");
   await page.getByRole("button", { name: "Toggle sidebar" }).click();
   const sheet = page.getByRole("dialog");
@@ -16,6 +16,7 @@ test("the sidebar and the panel become sheets on a phone", async ({ page, owner 
   await expect(page).toHaveURL(/\/topics\/workshop-demo$/);
   await expect(sheet).toBeHidden();
   await expect(page.getByRole("heading", { name: "Workshop demo" })).toBeVisible();
+  // The desktop project ran a worker turn on this topic earlier in the same run.
   await expect(page.getByText("Worker").first()).toBeVisible({ timeout: 30_000 });
   await screenshot(page, "m03-mobile-topic");
   await page.getByRole("button", { name: /Show notes and work/ }).click();

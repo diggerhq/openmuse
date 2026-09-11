@@ -1,21 +1,9 @@
 // Signs the tests in the way the app itself does: the owner cookie is minted
 // with the app's own signing code and OPENMUSE_COOKIE_SECRET from the
 // environment (.env.local), never by typing the owner secret into the form.
-import { readFileSync } from "node:fs";
 import { type APIResponse, test as base, type Page } from "@playwright/test";
+import { loadEnv } from "./env";
 
-function loadEnv(): void {
-  let text = "";
-  try {
-    text = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
-  } catch {
-    return;
-  }
-  for (const line of text.split("\n")) {
-    const match = line.match(/^([A-Z][A-Z0-9_]*)=(.*)$/);
-    if (match?.[1] && process.env[match[1]] === undefined) process.env[match[1]] = match[2] ?? "";
-  }
-}
 loadEnv();
 
 export async function ownerCookie(): Promise<{ name: string; value: string; csrf: string }> {
@@ -51,7 +39,13 @@ export const test = base.extend<{ owner: Owner }>({
 
 export { expect } from "@playwright/test";
 
-/** Screenshots land in docs/screenshots unless SCREENSHOT_DIR points elsewhere (build verification runs). */
+/**
+ * Screenshots land under test-results unless SCREENSHOT_DIR says otherwise;
+ * a deliberate refresh of the ones in docs/ui.md sets it to docs/screenshots.
+ */
 export async function screenshot(page: Page, name: string): Promise<void> {
-  await page.screenshot({ path: `${process.env.SCREENSHOT_DIR ?? "docs/screenshots"}/${name}.png`, fullPage: false });
+  await page.screenshot({
+    path: `${process.env.SCREENSHOT_DIR ?? "test-results/screenshots"}/${name}.png`,
+    fullPage: false,
+  });
 }

@@ -3,7 +3,8 @@
 // OpenComputer key from the CLI login into it (the app reads configuration
 // from the environment only), links or creates the OpenComputer project and,
 // once the app's public origin is known, deploys both agents to Development
-// pinned to that origin. It never prints the OpenComputer key.
+// pinned to that origin and seeds the demo notes into project memory. It
+// never prints the OpenComputer key.
 //
 //   npm run setup -- --origin https://your-app.example
 //       generate what is missing, link the project, deploy the agents to the origin.
@@ -83,7 +84,7 @@ ${finish}`;
     case "docker":
       return `Docker (docs/deploy/docker.md)
   docker run -d --name openmuse -p 3000:3000 --env-file .env.local -v openmuse-data:/data ghcr.io/diggerhq/openmuse:latest
-  .env.local already carries OPENMUSE_RETURN_PATH=timer; the image sets OPENMUSE_STATE_DIR=/data.
+  The image keeps the session map under OPENMUSE_STATE_DIR=/data.
   Put an https origin in front (a reverse proxy or a tunnel); the agents call back to it.
 ${finish}`;
     case "railway":
@@ -162,8 +163,6 @@ try {
   // The key the CLI holds becomes the app's OPENCOMPUTER_API_KEY; .env.local is
   // ignored by git and mode 600. Rotate it in the OpenComputer dashboard.
   env.OPENCOMPUTER_API_KEY = env.OPENCOMPUTER_API_KEY || config.apiKey;
-  // Local runs and long-lived hosts: the interim return path ticks in-process.
-  env.OPENMUSE_RETURN_PATH = env.OPENMUSE_RETURN_PATH || "timer";
   await writeEnvFile(env);
 
   if (!existsSync(new URL(".opencomputer/project.json", root))) {
@@ -185,6 +184,8 @@ try {
     await import("./prepare-agent.mjs");
     await cli(["doctor"]);
     await cli(["deploy", "--alias", "development"]);
+    // The resources exist in Development once the deployment declares them.
+    await import("./seed-notes.mjs");
   }
 
   console.log(`

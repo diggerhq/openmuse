@@ -1,10 +1,18 @@
-// The redesign, exercised against the real OpenComputer Development
-// environment at 1440x900. Model spend is kept to a handful of short turns.
+// The interface, exercised against the real OpenComputer Development
+// environment at 1440x900 as its own installation (playwright.config.ts).
+// Model spend is a handful of short coordinator turns and one worker turn
+// that uses the computer.
+import type { Page } from "@playwright/test";
 import { expect, screenshot, test } from "./fixtures";
 
 const TOPIC = "workshop-demo";
 
 test.describe.configure({ mode: "serial" });
+
+/** The conversation is attached and accepts input. */
+async function ready(page: Page): Promise<void> {
+  await expect(page.getByRole("textbox", { name: "Message" })).toBeEnabled({ timeout: 30_000 });
+}
 
 test("sidebar selection changes the URL and back/forward work", async ({ page, owner }) => {
   void owner;
@@ -26,7 +34,7 @@ test("sidebar selection changes the URL and back/forward work", async ({ page, o
 test("the main conversation replays history and streams a short reply", async ({ page, owner }) => {
   void owner;
   await page.goto("/");
-  await expect(page.getByText("OpenMuse").first()).toBeVisible({ timeout: 30_000 });
+  await ready(page);
   await screenshot(page, "01-main-conversation");
   const composer = page.getByRole("textbox", { name: "Message" });
   const word = `pong-${Date.now().toString(36).slice(-4)}`;
@@ -65,6 +73,23 @@ test("the Stop control interrupts a running reply", async ({ page, owner }) => {
   await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 120_000 });
 });
 
+test("a task sent from the topic starts a worker that uses its computer", async ({ page, owner }) => {
+  void owner;
+  await page.goto(`/topics/${TOPIC}`);
+  await expect(page.getByRole("heading", { name: "Workshop demo" })).toBeVisible();
+  await ready(page);
+  const composer = page.getByRole("textbox", { name: "Message" });
+  await composer.fill(
+    "Run `node --version` on your computer and reply with the one line of output as evidence. Do not save notes for this.",
+  );
+  await composer.press("Enter");
+  await expect(page.getByText("Worker").first()).toBeVisible({ timeout: 60_000 });
+  // The sandbox starts on the first command; the reply follows it.
+  await expect(page.getByRole("button", { name: /Did \d+ steps?/ }).first()).toBeVisible({ timeout: 180_000 });
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible({ timeout: 180_000 });
+  await expect(page.locator(".prose-chat", { hasText: /v\d+\.\d+\.\d+/ }).last()).toBeVisible();
+});
+
 test("a topic shows its conversation with tool activity, its notes and its work", async ({ page, owner }) => {
   void owner;
   await page.goto(`/topics/${TOPIC}`);
@@ -81,7 +106,7 @@ test("a topic shows its conversation with tool activity, its notes and its work"
     .getByRole("button", { name: "Show earlier messages" })
     .click({ timeout: 5_000 })
     .catch(() => undefined);
-  const steps = page.getByRole("button", { name: /Did \d+ steps/ }).first();
+  const steps = page.getByRole("button", { name: /Did \d+ steps?/ }).first();
   await expect(steps).toBeVisible({ timeout: 15_000 });
   await steps.scrollIntoViewIfNeeded();
   await steps.click();
@@ -157,7 +182,7 @@ test("a save that lost the race shows the server's text instead of overwriting i
 test("a dropped connection shows a reconnect banner and recovers", async ({ page, context, owner }) => {
   void owner;
   await page.goto("/");
-  await expect(page.getByText("OpenMuse").first()).toBeVisible({ timeout: 30_000 });
+  await ready(page);
   await context.setOffline(true);
   await expect(page.getByText("Connection lost. Trying again…")).toBeVisible({ timeout: 15_000 });
   await screenshot(page, "09-reconnect-banner");
@@ -169,7 +194,7 @@ test("a dropped connection shows a reconnect banner and recovers", async ({ page
 test("the command palette jumps between conversations", async ({ page, owner }) => {
   void owner;
   await page.goto("/");
-  await expect(page.getByText("OpenMuse").first()).toBeVisible({ timeout: 30_000 });
+  await ready(page);
   await page.keyboard.press("ControlOrMeta+k");
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
@@ -216,7 +241,7 @@ test("the sidebar and the panel collapse and remember it", async ({ page, owner 
 test("dark mode follows the toggle", async ({ page, owner }) => {
   void owner;
   await page.goto("/");
-  await expect(page.getByText("OpenMuse").first()).toBeVisible({ timeout: 30_000 });
+  await ready(page);
   await page.getByRole("button", { name: "Appearance" }).click();
   await page.getByRole("menuitem", { name: "Dark" }).click();
   await expect(page.locator("html")).toHaveClass(/dark/);
