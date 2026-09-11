@@ -25,7 +25,7 @@
         "description": "The installation secret the agents present; from `.env.local`, or `openssl rand -base64 32`. The app registers it with OpenComputer when you sign in."
       },
       "OPENMUSE_STORE": {
-        "description": "Workers KV for the interim topic index and notes; any new namespace."
+        "description": "Workers KV for the session map (which coordinator and worker sessions this installation owns); any new namespace."
       }
     }
   },
@@ -39,6 +39,7 @@
     "deploy:cloudflare": "node scripts/deploy-cloudflare.mjs",
     "setup": "node scripts/setup.mjs",
     "prepare:agent": "node scripts/prepare-agent.mjs",
+    "seed": "node scripts/seed-notes.mjs",
     "predoctor": "npm run prepare:agent",
     "doctor": "opencomputer doctor",
     "predeploy:agents": "npm run prepare:agent",
@@ -54,7 +55,7 @@
   "dependencies": {
     "@fontsource-variable/geist-mono": "5.3.0",
     "@fontsource-variable/inter": "5.3.0",
-    "@opencomputer/react": "file:vendor/opencomputer-react-0.2.0.tgz",
+    "@opencomputer/react": "0.2.0",
     "@shikijs/langs": "4.4.3",
     "@shikijs/themes": "4.4.3",
     "@tanstack/react-query": "5.102.8",
@@ -79,8 +80,9 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.13",
     "@cloudflare/vite-plugin": "1.54.7",
-    "@opencomputer/agent": "0.5.3",
-    "@opencomputer/cli": "0.6.9",
+    "@opencomputer/agent": "0.6.0",
+    "@opencomputer/cli": "0.7.1",
+    "@opencomputer/sdk": "1.1.1",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/react": "16.3.3",

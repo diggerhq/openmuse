@@ -1,17 +1,14 @@
 # The universal path: the Node build of the app in one image.
 #   docker build -t openmuse .
 #   docker run --env-file .env.local -p 3000:3000 -v openmuse-data:/data openmuse
-# Configuration is environment-only (.env.example). The interim topic index
-# and notes are files under OPENMUSE_STATE_DIR (/data here; mount a volume);
-# the interim return path runs in-process with OPENMUSE_RETURN_PATH=timer.
+# Configuration is environment-only (.env.example). The session map is a
+# file under OPENMUSE_STATE_DIR (/data here; mount a volume).
 # Published to ghcr.io/diggerhq/openmuse by .github/workflows/image.yml.
 
 FROM node:22-alpine AS build
 WORKDIR /app
 # The dependency manifest first so the install layer is cached across source changes.
-# vendor/ holds the prebuilt @opencomputer/react tarball package.json points at.
 COPY package.json package-lock.json ./
-COPY vendor ./vendor
 RUN npm ci --no-audit --no-fund
 COPY . .
 RUN npm run build
@@ -19,11 +16,9 @@ RUN npm run build
 FROM node:22-alpine AS runtime
 ENV NODE_ENV=production \
     PORT=3000 \
-    OPENMUSE_STATE_DIR=/data \
-    OPENMUSE_RETURN_PATH=timer
+    OPENMUSE_STATE_DIR=/data
 WORKDIR /app
 COPY package.json package-lock.json ./
-COPY vendor ./vendor
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/dist ./dist
 # Only the state directory is writable by the app user; chowning /app would copy the dependency layer.
