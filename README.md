@@ -1,7 +1,7 @@
 # OpenMuse
 
-A personal assistant you deploy. Hand it work, keep talking, and get the
-results back in the same conversation.
+A personal assistant you deploy for yourself. Hand it work, keep talking,
+and get the results back in the same conversation.
 
 Longer jobs get a **topic**: its own conversation, notes you can read and
 edit, and a cloud computer when needed. Work continues when you close the
@@ -10,8 +10,8 @@ browser.
 A TanStack Start web app and two agents defined with React-style TypeScript
 hooks. [OpenComputer Serverless Agents](https://docs.opencomputer.dev/agents/overview)
 runs the agents, provisions their computers and stores their conversations
-and [notes](https://docs.opencomputer.dev/agents/memory). No separate agent
-infrastructure to operate.
+and [notes](https://docs.opencomputer.dev/agents/memory) in your own
+OpenComputer project. No separate agent infrastructure to operate.
 
 ![A request for Greece island-hopping options is delegated to a topic; the completed research returns to the main conversation, beside the owner's saved preferences.](docs/screenshots/readme-main-conversation.png)
 
@@ -83,7 +83,7 @@ Follow the host guide for secrets and agent setup:
 The guides record which paths have been tested; the Cloudflare button
 requires a public repository.
 
-Each installation has one owner login and its own OpenComputer project.
+Access to your app is protected by an owner login.
 See [configuration and owner access](docs/configuration.md) for storage,
 origins and secret rotation; [.env.example](.env.example) lists the settings.
 
