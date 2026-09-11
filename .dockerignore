@@ -1,0 +1,21 @@
+# Only what the Node build needs goes into the image context.
+.git
+node_modules
+dist
+.output
+.wrangler
+.tanstack
+.openmuse
+.opencomputer
+.env
+.env.*
+!.env.example
+.dev.vars*
+opencomputer/agents/*/.opencomputer
+opencomputer/agents/*/workspace
+playwright-report
+test-results
+docs/screenshots
+*.log
+.DS_Store
+*.tsbuildinfo

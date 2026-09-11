@@ -1,0 +1,32 @@
+# Render Blueprint (https://render.com/docs/blueprint-spec). One web service
+# built from the Dockerfile, a persistent disk for the session map,
+# the health check on /api/health. The Deploy to Render button reads this
+# file: it prompts for the two OpenComputer values (sync: false) and
+# generates the three OpenMuse secrets (generateValue); the app registers the
+# generated agent secret with the platform when the owner signs in.
+# Status: spec validated with `render blueprints validate` and the published
+# JSON schema; a deploy has not been exercised.
+services:
+  - type: web
+    name: openmuse
+    runtime: docker
+    plan: starter # disks need a paid instance; free instances have no disk and spin down
+    healthCheckPath: /api/health
+    autoDeploy: true
+    disk:
+      name: openmuse-state
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: OPENCOMPUTER_API_KEY
+        sync: false
+      - key: OPENCOMPUTER_PROJECT_ID
+        sync: false
+      - key: OPENMUSE_OWNER_SECRET
+        generateValue: true
+      - key: OPENMUSE_COOKIE_SECRET
+        generateValue: true
+      - key: OPENMUSE_AGENT_SECRET
+        generateValue: true
+      - key: OPENMUSE_STATE_DIR
+        value: /data

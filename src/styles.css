@@ -1,0 +1,331 @@
+/* OpenMuse design tokens: ink on paper, one accent, neutral surfaces.
+   Tailwind v4 CSS-first config; shadcn semantic colors map onto the tokens
+   below. Light is the base palette; `.dark` (next-themes, system default)
+   overrides it. */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans:
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Product tokens */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-owner: var(--owner);
+  --color-status-running: var(--status-running);
+  --color-status-running-bg: var(--status-running-bg);
+  --color-status-attention: var(--status-attention);
+  --color-status-attention-bg: var(--status-attention-bg);
+  --color-status-idle: var(--status-idle);
+  --color-status-idle-bg: var(--status-idle-bg);
+  --color-status-failed: var(--status-failed);
+  --color-status-failed-bg: var(--status-failed-bg);
+  --color-code: var(--code);
+  --color-code-foreground: var(--code-foreground);
+  --color-code-border: var(--code-border);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: hsl(40 33% 97%);
+  --foreground: hsl(45 8% 8%);
+  --card: hsl(40 40% 99%);
+  --card-foreground: hsl(45 8% 8%);
+  --popover: hsl(40 40% 99%);
+  --popover-foreground: hsl(45 8% 8%);
+  --primary: hsl(45 8% 8%);
+  --primary-foreground: hsl(40 33% 97%);
+  --secondary: hsl(40 22% 94%);
+  --secondary-foreground: hsl(45 8% 8%);
+  --muted: hsl(40 22% 94%);
+  --muted-foreground: hsl(40 5% 38%);
+  --accent: hsl(40 22% 94%);
+  --accent-foreground: hsl(45 8% 8%);
+  --destructive: hsl(0 70% 45%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(40 14% 87%);
+  --input: hsl(40 14% 82%);
+  --ring: hsl(160 30% 40%);
+  --chart-1: hsl(45 8% 25%);
+  --chart-2: hsl(45 6% 42%);
+  --chart-3: hsl(40 5% 58%);
+  --chart-4: hsl(40 8% 72%);
+  --chart-5: hsl(40 10% 84%);
+  --sidebar: hsl(40 28% 96%);
+  --sidebar-foreground: hsl(45 8% 8%);
+  --sidebar-primary: hsl(45 8% 8%);
+  --sidebar-primary-foreground: hsl(40 33% 97%);
+  --sidebar-accent: hsl(40 24% 91%);
+  --sidebar-accent-foreground: hsl(45 8% 8%);
+  --sidebar-border: hsl(40 14% 87%);
+  --sidebar-ring: hsl(160 30% 40%);
+
+  --brand: hsl(160 34% 30%);
+  --brand-foreground: hsl(0 0% 100%);
+  --panel: hsl(40 40% 99%);
+  --panel-2: hsl(40 22% 94%);
+  --owner: hsl(160 24% 93%);
+  --status-running: hsl(142 68% 27%);
+  --status-running-bg: hsl(142 44% 92%);
+  --status-attention: hsl(34 80% 31%);
+  --status-attention-bg: hsl(42 88% 90%);
+  --status-idle: hsl(40 5% 45%);
+  --status-idle-bg: hsl(40 16% 92%);
+  --status-failed: hsl(0 65% 42%);
+  --status-failed-bg: hsl(0 66% 95%);
+  --code: hsl(36 9% 10%);
+  --code-foreground: hsl(40 12% 88%);
+  --code-border: hsl(36 8% 19%);
+}
+
+.dark {
+  --background: hsl(36 8% 8%);
+  --foreground: hsl(40 12% 90%);
+  --card: hsl(36 8% 11%);
+  --card-foreground: hsl(40 12% 90%);
+  --popover: hsl(36 8% 12%);
+  --popover-foreground: hsl(40 12% 90%);
+  --primary: hsl(40 12% 90%);
+  --primary-foreground: hsl(36 8% 8%);
+  --secondary: hsl(36 7% 16%);
+  --secondary-foreground: hsl(40 12% 90%);
+  --muted: hsl(36 7% 16%);
+  --muted-foreground: hsl(40 6% 64%);
+  --accent: hsl(36 7% 17%);
+  --accent-foreground: hsl(40 12% 90%);
+  --destructive: hsl(0 60% 55%);
+  --destructive-foreground: hsl(0 0% 100%);
+  --border: hsl(36 7% 19%);
+  --input: hsl(36 7% 24%);
+  --ring: hsl(160 30% 55%);
+  --sidebar: hsl(36 8% 10%);
+  --sidebar-foreground: hsl(40 12% 90%);
+  --sidebar-primary: hsl(40 12% 90%);
+  --sidebar-primary-foreground: hsl(36 8% 8%);
+  --sidebar-accent: hsl(36 7% 16%);
+  --sidebar-accent-foreground: hsl(40 12% 90%);
+  --sidebar-border: hsl(36 7% 18%);
+  --sidebar-ring: hsl(160 30% 55%);
+
+  --brand: hsl(160 34% 45%);
+  --brand-foreground: hsl(36 8% 8%);
+  --panel: hsl(36 8% 11%);
+  --panel-2: hsl(36 7% 15%);
+  --owner: hsl(160 14% 17%);
+  --status-running: hsl(142 50% 60%);
+  --status-running-bg: hsl(142 30% 16%);
+  --status-attention: hsl(40 80% 65%);
+  --status-attention-bg: hsl(40 40% 16%);
+  --status-idle: hsl(40 6% 60%);
+  --status-idle-bg: hsl(36 7% 16%);
+  --status-failed: hsl(0 70% 68%);
+  --status-failed-bg: hsl(0 35% 17%);
+  --code: hsl(36 9% 6%);
+  --code-foreground: hsl(40 12% 88%);
+  --code-border: hsl(36 8% 16%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-optical-sizing: auto;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Streaming caret on an assistant message that is still producing text. */
+@keyframes caret {
+  50% {
+    opacity: 0;
+  }
+}
+.streaming-caret::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 0.15em;
+  vertical-align: text-bottom;
+  background: var(--brand);
+  border-radius: 1px;
+  animation: caret 1s steps(1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .streaming-caret::after {
+    animation: none;
+  }
+}
+
+/* Shiki dual themes (defaultColor off): pick the variables per theme. */
+.shiki {
+  color: var(--shiki-light);
+  background-color: var(--shiki-light-bg);
+}
+.shiki span {
+  color: var(--shiki-light);
+}
+.dark .shiki {
+  color: var(--shiki-dark);
+  background-color: var(--shiki-dark-bg);
+}
+.dark .shiki span {
+  color: var(--shiki-dark);
+}
+
+/* Markdown from the agents: wrap everything, never scroll the page sideways. */
+.prose-chat {
+  overflow-wrap: anywhere;
+}
+.prose-chat > * + * {
+  margin-top: 0.6em;
+}
+.prose-chat p:empty {
+  display: none;
+}
+.prose-chat ul,
+.prose-chat ol {
+  padding-left: 1.4em;
+}
+.prose-chat ul {
+  list-style: disc;
+}
+.prose-chat ol {
+  list-style: decimal;
+}
+.prose-chat li + li {
+  margin-top: 0.2em;
+}
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.prose-chat h1 {
+  font-size: 1.15em;
+}
+.prose-chat h2 {
+  font-size: 1.08em;
+}
+.prose-chat h3,
+.prose-chat h4 {
+  font-size: 1em;
+}
+.prose-chat a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.prose-chat blockquote {
+  border-left: 2px solid var(--border);
+  padding-left: 0.8em;
+  color: var(--muted-foreground);
+}
+.prose-chat code {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+.prose-chat :not(pre) > code {
+  background: var(--panel-2);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.prose-chat pre {
+  background: var(--panel-2);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.7em 0.9em;
+  overflow-x: auto;
+  max-width: 100%;
+  font-size: 0.82em;
+  line-height: 1.5;
+}
+.prose-chat pre code {
+  font-size: inherit;
+  white-space: pre;
+}
+.prose-chat table {
+  border-collapse: collapse;
+  font-size: 0.9em;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose-chat th,
+.prose-chat td {
+  border: 1px solid var(--border);
+  padding: 0.25em 0.6em;
+  text-align: left;
+}
+.prose-chat th {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+.prose-chat hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+.prose-chat img {
+  max-width: 100%;
+}
