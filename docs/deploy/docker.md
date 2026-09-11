@@ -9,9 +9,8 @@ is recorded below.
 The image is the Node build of the app (`Dockerfile`, multi-stage on
 `node:22-alpine`, runs as the `node` user, listens on `PORT`, default 3000,
 health check on `GET /api/health`). It sets `OPENMUSE_STATE_DIR=/data` for the
-interim topic index and notes (mount a volume there) and
-`OPENMUSE_RETURN_PATH=timer` so the interim return path runs in-process.
-Everything else comes from the environment (`.env.example`).
+session map (mount a volume there). Everything else comes from the
+environment (`.env.example`).
 
 ## Run
 
@@ -43,10 +42,11 @@ Open the origin and sign in with `OPENMUSE_OWNER_SECRET` from `.env.local`;
 the sign-in registers the installation secret with the platform for that
 origin.
 
-The state directory holds `state.json` (the topic index) and the fixture
-notes under `memory/`; back up or move the volume to keep topics across
-hosts. On a host without a volume set `OPENMUSE_STATE_STORE=memory` and
-accept that topics are lost on restart.
+The state directory holds `state.json`, the session map: which coordinator
+session is live and which worker session each topic has. Notes are project
+memory on OpenComputer, not on the volume. On a host without a volume set
+`OPENMUSE_STATE_STORE=memory`: after a restart the coordinator session is
+found again by its key and each topic gets a fresh worker on its next task.
 
 ## Evidence
 

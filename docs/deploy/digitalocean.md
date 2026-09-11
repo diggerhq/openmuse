@@ -9,11 +9,11 @@ while this repository is private.
 
 What runs where: one service built from the `Dockerfile`, the health check
 on `/api/health`, `apps-s-1vcpu-0.5gb` in `lon`. App Platform containers
-have no persistent disk, so the interim topic index runs in process memory
-(`OPENMUSE_STATE_STORE=memory`): topics are lost on every deploy or restart;
-the coordinator session is found again by its idempotency key. The interim
-return path runs on the in-process timer; App Platform has no cron for
-services (its job components run around deploys, not on a schedule).
+have no persistent disk, so the session map runs in process memory
+(`OPENMUSE_STATE_STORE=memory`): on a deploy or restart the coordinator
+session is found again by its idempotency key, and every topic keeps its
+notes (they live in project memory on OpenComputer) but gets a fresh worker
+on its next task, because the map from topic to worker session is gone.
 DigitalOcean does not generate secret values: the five secrets are prompted
 for when the app is created, from `.env.local`.
 

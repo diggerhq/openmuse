@@ -8,11 +8,10 @@ workspace login to run the command. No Render account was available, so the
 button and the deploy were not run.
 
 What runs where: one web service built from the `Dockerfile`
-(`runtime: docker`), a 1 GB persistent disk at `/data` for the interim
-topic index and notes (`OPENMUSE_STATE_DIR=/data`), the interim return path
-on the in-process timer (`OPENMUSE_RETURN_PATH=timer`), the health check on
-`/api/health`. Disks need a paid instance (`plan: starter`); a free instance
-would have no disk and would spin down, which also stops the timer.
+(`runtime: docker`), a 1 GB persistent disk at `/data` for the session map
+(`OPENMUSE_STATE_DIR=/data`), the health check on `/api/health`. Disks need
+a paid instance (`plan: starter`); a free instance would have no disk and
+would spin down.
 
 Render is the one host that generates secret values: `render.yaml` marks
 `OPENMUSE_OWNER_SECRET`, `OPENMUSE_COOKIE_SECRET` and `OPENMUSE_AGENT_SECRET`

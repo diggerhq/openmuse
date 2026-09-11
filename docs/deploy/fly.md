@@ -6,11 +6,12 @@ the path is the CLI.
 
 What runs where: one Machine (`shared-cpu-1x`, 512 MB) built from the
 `Dockerfile` by Fly's remote builder, a 1 GB volume `openmuse_data` at
-`/data` for the interim topic index and notes, the interim return path on
-the in-process timer, the health check on `/api/health`, `force_https`. The
-Machine never auto-stops (`auto_stop_machines = "off"`,
-`min_machines_running = 1`) because the timer has to keep running; a stopped
-Machine would deliver worker outcomes only while a request keeps it awake.
+`/data` for the session map, the health check on `/api/health`,
+`force_https`. The Machine never auto-stops (`auto_stop_machines = "off"`,
+`min_machines_running = 1`); that was for the in-process return path the
+app no longer has (outcomes are delivered by the platform), so `stop` with
+`auto_start_machines` is now an option, not exercised (the agents' callbacks
+and the browser both start a stopped Machine).
 
 ## Steps
 

@@ -23,8 +23,7 @@ Two facts from Railway's current docs shape this path:
 
 What runs where: one service built from the `Dockerfile` (Railway always
 builds with a Dockerfile when it finds one), a 1 GB volume at `/data` for the
-interim topic index and notes, the interim return path on the in-process
-timer, the health check on `/api/health`. Railway injects `PORT`.
+session map, the health check on `/api/health`. Railway injects `PORT`.
 
 ## Steps
 

@@ -5,12 +5,13 @@ Deploy to Cloudflare button is configured per Cloudflare's docs but **not
 exercised**: the button only works for public repositories and this one is
 private.
 
-What runs where: the app is one Worker (`wrangler.jsonc`); the interim topic
-index and fixture notes live in a Workers KV namespace bound as
-`OPENMUSE_STORE` (`OPENMUSE_STATE_STORE=kv` is set in `vars`); the interim
-return path runs from the cron trigger `* * * * *` through the `scheduled`
-handler in `src/server.ts`. Both go away when memory documents carry topics
-and the platform delivers outcomes itself.
+What runs where: the app is one Worker (`wrangler.jsonc`); the session map
+(which coordinator and worker sessions this installation owns) lives in a
+Workers KV namespace bound as `OPENMUSE_STORE` (`OPENMUSE_STATE_STORE=kv` is
+set in `vars`). Notes are project memory on OpenComputer and worker
+outcomes are delivered by the platform, so the Worker has no cron trigger
+and no scheduled handler. The evidence below predates that change: it was
+recorded with the cron trigger and the fixture notes the Worker then had.
 
 ## Before either path
 
@@ -33,7 +34,7 @@ also in `.env.local`.
 
 Cloudflare clones the repository into your account, reads `wrangler.jsonc`,
 provisions a KV namespace for `OPENMUSE_STORE` (rewriting the placeholder id
-in the clone), applies the cron trigger, and prompts for the secrets listed
+in the clone) and prompts for the secrets listed
 in `.env.example` with the descriptions from `package.json`
 (`cloudflare.bindings`):
 
