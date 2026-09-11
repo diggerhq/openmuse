@@ -1,7 +1,7 @@
 // The CLI path onto Cloudflare Workers, from a laptop with .env.local:
 //   npm run deploy:cloudflare
-// It creates the KV namespace the interim state store needs (once, writing
-// its id into wrangler.jsonc), runs `npm run deploy` (the Cloudflare build +
+// It creates the KV namespace the session map needs (once, writing its id
+// into wrangler.jsonc), runs `npm run deploy` (the Cloudflare build +
 // `wrangler deploy`, which is also what the Deploy to Cloudflare button and
 // Workers Builds run; there the platform supplies the namespace and the
 // secrets instead), then uploads the app's secrets from .env.local.
@@ -23,7 +23,6 @@ const SECRET_NAMES = [
   "OPENMUSE_APP_ORIGIN",
   "OPENMUSE_COORDINATOR_AGENT",
   "OPENMUSE_WORKER_AGENT",
-  "OPENMUSE_MEMORY",
 ];
 
 function run(command, args, { input, capture = false, env = {} } = {}) {

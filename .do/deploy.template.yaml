@@ -2,10 +2,10 @@
 # (https://docs.digitalocean.com/products/app-platform/how-to/add-deploy-do-button/):
 # a regular app spec under the `spec:` key. One service built from the
 # Dockerfile, the health check on /api/health. App Platform containers have
-# no persistent disk, so the interim topic index lives in process memory
-# (OPENMUSE_STATE_STORE=memory: topics are lost on every deploy or restart;
-# the coordinator session is found again by its key) and the interim return
-# path runs on the in-process timer. Secrets listed without a value are
+# no persistent disk, so the session map lives in process memory
+# (OPENMUSE_STATE_STORE=memory: on a deploy or restart the coordinator
+# session is found again by its key, topics keep their notes but get a
+# fresh worker on their next task). Secrets listed without a value are
 # prompted for when the app is created; DigitalOcean does not generate them.
 # Status: spec validated with `doctl apps spec validate --schema-only`;
 # a deploy has not been exercised. The button requires a public repository.
@@ -42,7 +42,4 @@ spec:
           scope: RUN_TIME
         - key: OPENMUSE_STATE_STORE
           value: memory
-          scope: RUN_TIME
-        - key: OPENMUSE_RETURN_PATH
-          value: timer
           scope: RUN_TIME

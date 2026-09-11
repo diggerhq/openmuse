@@ -4,8 +4,8 @@
 //   npm install -D railway && npx railway login && npx railway init
 //   npx railway config plan && npx railway config apply
 // One service built from the Dockerfile (Railway always builds with a
-// Dockerfile when it finds one), a volume at /data for the interim state
-// store, the health check on /api/health. Secrets are `preserve()`: the file
+// Dockerfile when it finds one), a volume at /data for the session map, the
+// health check on /api/health. Secrets are `preserve()`: the file
 // never carries them; set them once with `railway variables --set` (the IaC
 // context's randomString is a deterministic hash, not a secret generator).
 // Status: typechecked against railway@3.11.0 `railway/iac`; a deploy has not
@@ -23,7 +23,6 @@ export default defineRailway(() => {
     volumeMounts: { "/data": data },
     env: {
       OPENMUSE_STATE_DIR: "/data",
-      OPENMUSE_RETURN_PATH: "timer",
       OPENCOMPUTER_API_KEY: preserve(),
       OPENCOMPUTER_PROJECT_ID: preserve(),
       OPENMUSE_OWNER_SECRET: preserve(),

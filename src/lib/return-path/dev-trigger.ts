@@ -1,7 +1,8 @@
 // Development only, Cloudflare target: workerd has no timers outside a
 // request, so this Vite plugin (running in the Node dev process) fires the
 // Worker's scheduled handler every two seconds through the local endpoint
-// @cloudflare/vite-plugin exposes for cron testing. Deleted with the module.
+// @cloudflare/vite-plugin exposes for cron testing. Deleted with the
+// fallback return path.
 import type { Plugin } from "vite";
 
 export function returnPathDevTrigger(): Plugin {

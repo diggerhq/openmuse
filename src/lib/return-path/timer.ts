@@ -1,6 +1,7 @@
-// The in-process driver of the interim return path (see index.ts): one tick
-// every two seconds while the process lives. Idempotent across module
-// reloads, and never started on edge runtimes (no timers outside a request).
+// The Node driver of the fallback return path (see index.ts): one tick every
+// two seconds while the process lives. Idempotent across module reloads, and
+// never started on edge runtimes (no timers outside a request; Cloudflare
+// uses the cron trigger).
 import { tick } from "@/lib/return-path";
 
 const KEY = Symbol.for("openmuse.returnPathTimer");
@@ -11,7 +12,7 @@ function edgeRuntime(): boolean {
 }
 
 export function ensureReturnPathTimer(): boolean {
-  if (process.env.OPENMUSE_RETURN_PATH !== "timer" || edgeRuntime()) return false;
+  if (edgeRuntime()) return false;
   const global = globalThis as { [KEY]?: ReturnType<typeof setInterval> };
   if (global[KEY]) return true;
   global[KEY] = setInterval(() => {

@@ -1,7 +1,7 @@
 // The server entry, in the universal fetch-handler shape every host accepts.
-// Cloudflare calls fetch(request, env, ctx) and scheduled(event, env, ctx);
-// Node (srvx) and the Vite dev server call fetch(request). The Workers
-// bindings are the only host-specific input and stay in this file.
+// Cloudflare calls fetch(request, env, ctx); Node (srvx) and the Vite dev
+// server call fetch(request). The Workers bindings are the only
+// host-specific input and stay in this file.
 //
 // On Node the server sits behind the host's TLS-terminating proxy (Render,
 // Railway, Fly, DigitalOcean, or your own in front of the Docker image), so
@@ -31,7 +31,7 @@ export default {
     return handler.fetch(request);
   },
   // Cloudflare cron trigger (wrangler.jsonc `triggers.crons`): one pass of the
-  // interim return path.
+  // fallback return path; a no-op once the coordinator has its subscription.
   async scheduled(
     _event: unknown,
     bindings: WorkerBindings | undefined,

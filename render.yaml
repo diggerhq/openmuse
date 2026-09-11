@@ -1,5 +1,5 @@
 # Render Blueprint (https://render.com/docs/blueprint-spec). One web service
-# built from the Dockerfile, a persistent disk for the interim state store,
+# built from the Dockerfile, a persistent disk for the session map,
 # the health check on /api/health. The Deploy to Render button reads this
 # file: it prompts for the two OpenComputer values (sync: false) and
 # generates the three OpenMuse secrets (generateValue); the app registers the
@@ -30,5 +30,3 @@ services:
         generateValue: true
       - key: OPENMUSE_STATE_DIR
         value: /data
-      - key: OPENMUSE_RETURN_PATH
-        value: timer
