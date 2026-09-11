@@ -2,9 +2,11 @@
 
 A personal assistant you deploy. One conversation with a coordinator that
 answers directly or hands work to topics; each topic is a set of notes plus
-a worker with a real computer. OpenComputer Serverless Agents runs the agent
-loop, the sandbox, the brokered credentials, the notes (project memory) and
-the delivery of each worker's outcome back into the conversation; this
+a worker with a real computer.
+[OpenComputer Serverless Agents](https://docs.opencomputer.dev/agents/overview)
+runs the agent loop, the sandbox, the brokered credentials, the notes
+([project memory](https://docs.opencomputer.dev/agents/memory)) and the
+delivery of each worker's outcome back into the conversation; this
 repository is the interface and the delegation rules.
 
 ![The main conversation: topics in the sidebar, worker outcomes in the conversation, the owner profile beside it](docs/screenshots/readme-main-conversation.png)
@@ -40,22 +42,16 @@ npm run setup -- --origin https://<the app's host>          # agents deployed fo
 
 Details, per host, are under [docs/deploy/](docs/deploy/).
 
-## The idea
+## Model
 
-Muse has one lasting conversation. Everything you bring goes to the same
-assistant, and when something needs real work it becomes a topic: a set of
-notes plus a worker with a computer, running on its own and reporting back
-into that one conversation. OpenMuse replicates that shape on OpenComputer
-Serverless Agents, and the notes are the platform's
-[project memory](https://docs.opencomputer.dev/agents/memory): documents
-kept per project, bound to sessions, read by agents through
-[`useMemory`](https://docs.opencomputer.dev/agents/document-memory) and saved
-with `memory_save`. The app adds nothing of its own on top of that; it binds
-the right documents to the right sessions.
+Muse's shape: one lasting conversation, and topics that run on their own and
+report back into it. OpenMuse builds that on two platform features. Sessions
+give the coordinator and each topic's worker their own durable conversation;
+project memory holds the owner profile and one notes document per topic,
+bound to those sessions and read by the agents through `useMemory`. The app
+binds the right documents to the right sessions and does nothing else.
 
-The pieces OpenMuse is built from, in the OpenComputer docs:
-
-- [Serverless Agents overview](https://docs.opencomputer.dev/agents/overview) and the [mental model](https://docs.opencomputer.dev/agents/mental-model)
+- [Serverless Agents overview](https://docs.opencomputer.dev/agents/overview) and [mental model](https://docs.opencomputer.dev/agents/mental-model)
 - [Memory](https://docs.opencomputer.dev/agents/memory) and [document memory](https://docs.opencomputer.dev/agents/document-memory): the profile and the topic notes
 - [Sessions and turns](https://docs.opencomputer.dev/agents/sessions): the coordinator and one worker per topic
 - [Events](https://docs.opencomputer.dev/agents/events): how a worker's outcome reaches the coordinator
