@@ -7,9 +7,11 @@ Longer jobs get a **topic**: its own conversation, notes you can read and
 edit, and a cloud computer when needed. Work continues when you close the
 browser.
 
-Built on [OpenComputer Serverless Agents](https://docs.opencomputer.dev/agents/overview)
-with TanStack Start and two TypeScript agents. OpenComputer runs the agents
-and keeps their conversations and [notes](https://docs.opencomputer.dev/agents/memory).
+A TanStack Start web app and two agents defined with React-style TypeScript
+hooks. [OpenComputer Serverless Agents](https://docs.opencomputer.dev/agents/overview)
+runs the agents, provisions their computers and stores their conversations
+and [notes](https://docs.opencomputer.dev/agents/memory). No separate agent
+infrastructure to operate.
 
 ![A request for Greece island-hopping options is delegated to a topic; the completed research returns to the main conversation, beside the owner's saved preferences.](docs/screenshots/readme-main-conversation.png)
 
@@ -87,8 +89,20 @@ origins and secret rotation; [.env.example](.env.example) lists the settings.
 
 ## How it's built
 
-The [coordinator](opencomputer/agents/coordinator/agent.ts) answers directly
-or calls [start_topic](opencomputer/agents/coordinator/tools/start-topic.ts)
+An agent is a TypeScript function that declares what it needs and returns
+its instructions. The [coordinator](opencomputer/agents/coordinator/agent.ts)
+starts with:
+
+```ts
+useModel("anthropic/claude-sonnet-4.6");
+const input = useInput();
+const owner = useMemory(profile);
+const overview = useMemory(topics);
+useTool(startTopic);
+```
+
+It answers directly or calls
+[start_topic](opencomputer/agents/coordinator/tools/start-topic.ts)
 to create or reuse a worker session. The
 [worker](opencomputer/agents/topic-worker/agent.ts) uses a computer for its
 task and saves useful knowledge with `memory_save`.
