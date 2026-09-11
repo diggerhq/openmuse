@@ -30,8 +30,8 @@
     }
   },
   "scripts": {
-    "dev": "vite dev --port 3100",
-    "dev:cloudflare": "OPENMUSE_TARGET=cloudflare vite dev --port 3100",
+    "dev": "vite dev --port 3100 --strictPort",
+    "dev:cloudflare": "OPENMUSE_TARGET=cloudflare vite dev --port 3100 --strictPort",
     "build": "vite build",
     "build:cloudflare": "OPENMUSE_TARGET=cloudflare vite build",
     "start": "srvx --prod --static ../client dist/server/server.js",

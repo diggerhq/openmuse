@@ -3,6 +3,9 @@
 // in the environment win.
 import { readFileSync } from "node:fs";
 
+/** The installation the suite runs as; every test server must report it. */
+export const E2E_INSTALLATION_ID = "e2e";
+
 export function loadEnv(): void {
   let text = "";
   try {
