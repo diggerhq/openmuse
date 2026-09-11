@@ -8,9 +8,10 @@ dist/
 .dev.vars*
 .opencomputer/
 .openmuse/
+.openmuse-e2e/
 opencomputer/agents/*/.opencomputer/
 opencomputer/agents/*/workspace/
-opencomputer/agents/*/memory/fixtures.generated.ts
+opencomputer/agents/*/memory.ts
 opencomputer/agents/*/tools/app.ts
 playwright-report/
 test-results/
