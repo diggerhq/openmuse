@@ -1,5 +1,8 @@
 # Deploy to Railway
 
+Untested: no deploy has been exercised on this host and its spec (.railway/railway.ts) is not in the repository; the steps below describe what such a spec contained.
+
+
 Status: **spec validated, deploy not exercised.** `.railway/railway.ts`
 typechecks against `railway@3.11.0` (`railway/iac`) and, evaluated with the
 package's own `createRailwayContext` the way `railway config plan` does,

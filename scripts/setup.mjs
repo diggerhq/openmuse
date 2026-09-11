@@ -8,7 +8,7 @@
 //
 //   npm run setup -- --origin https://your-app.example
 //       generate what is missing, link the project, deploy the agents to the origin.
-//   npm run setup -- --target <cloudflare|docker|railway|render|fly|digitalocean>
+//   npm run setup -- --target <cloudflare|docker|fly|render>
 //       the same, then print the exact steps for that host; --origin may come
 //       later, after the host has given the app its URL.
 //   npm run setup -- --rotate
@@ -27,7 +27,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readEnvFile, root, writeEnvFile } from "./env-file.mjs";
 
-const TARGETS = ["cloudflare", "docker", "railway", "render", "fly", "digitalocean"];
+const TARGETS = ["cloudflare", "docker", "fly", "render"];
 
 function option(name) {
   const index = process.argv.indexOf(name);
@@ -87,15 +87,6 @@ ${finish}`;
   The image keeps the session map under OPENMUSE_STATE_DIR=/data.
   Put an https origin in front (a reverse proxy or a tunnel); the agents call back to it.
 ${finish}`;
-    case "railway":
-      return `Railway (docs/deploy/railway.md)
-  npm install -D railway && npx railway login && npx railway init
-  npx railway config apply            # .railway/railway.ts: the service (Dockerfile), the /data volume, the health check
-  npx railway variables --set "OPENCOMPUTER_API_KEY=..." --set "OPENCOMPUTER_PROJECT_ID=..." \\
-    --set "OPENMUSE_OWNER_SECRET=..." --set "OPENMUSE_COOKIE_SECRET=..." --set "OPENMUSE_AGENT_SECRET=..."
-    ${paste(PASTE_WITH_AGENT)}
-  npx railway up && npx railway domain
-${finish}`;
     case "render":
       return `Render (docs/deploy/render.md)
   Button: https://render.com/deploy?repo=https://github.com/diggerhq/openmuse
@@ -107,11 +98,6 @@ ${finish.replace("OPENMUSE_OWNER_SECRET from .env.local", "the OPENMUSE_OWNER_SE
   fly auth login && fly launch --copy-config --no-deploy   # fly.toml: Dockerfile build, /data volume, health check
   fly secrets import < .env.local                          # every value, including the OpenComputer key, from the file
   fly deploy
-${finish}`;
-    case "digitalocean":
-      return `DigitalOcean App Platform (docs/deploy/digitalocean.md)
-  Button (public repository only): https://cloud.digitalocean.com/apps/new?repo=https://github.com/diggerhq/openmuse/tree/main
-    ${paste(PASTE_WITH_AGENT)} The spec is .do/deploy.template.yaml; no disk, so OPENMUSE_STATE_STORE=memory there.
 ${finish}`;
     default:
       return "";
@@ -196,7 +182,7 @@ ${generated.includes("OPENMUSE_OWNER_SECRET") ? `\nOwner login secret (type it i
     console.log(steps(target, Boolean(env.OPENMUSE_APP_ORIGIN)));
   } else {
     console.log(`Run locally:          npm run dev   (port 3100; the app origin must reach it, e.g. ngrok http --domain=<host> 3100)
-Deploy:               npm run setup -- --target <cloudflare|docker|railway|render|fly|digitalocean> prints the steps; README "Deploy" has the buttons.`);
+Deploy:               npm run setup -- --target <cloudflare|docker|fly|render> prints the steps; README "Deploy" has the buttons.`);
   }
   console.log(
     "Recovery: lost the owner secret? Run `npm run setup -- --rotate`, put the new values on the host, redeploy; every existing login cookie stops working.",

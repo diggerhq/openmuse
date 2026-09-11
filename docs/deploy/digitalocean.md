@@ -1,5 +1,8 @@
 # Deploy to DigitalOcean App Platform
 
+Untested: no deploy has been exercised on this host and its spec (.do/deploy.template.yaml) is not in the repository; the steps below describe what such a spec contained.
+
+
 Status: **spec validated, deploy not exercised.** The app spec inside
 `.do/deploy.template.yaml` passes `doctl apps spec validate --schema-only`
 (doctl 1.168; an unknown field fails it). No DigitalOcean account was
